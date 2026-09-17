@@ -16,7 +16,7 @@ This project involves building a lisp based on the Polish Notation for arithmeti
 2 * 3 * 6   is written as  * 2 3 6
 ```
 
-We shall use regular expressions to define a grammar, at its core consisting of numbers, operators and expressions, in which an expression is defined as either a number or an operator followed by one or more expressions. This shall then be re-factored to include S-Expressions, and then Q-Expressions.
+We shall use regular expressions to define a grammar, at its core consisting of numbers, operators and expressions, in which an expression is defined as either a number or an operator followed by one or more expressions. This shall then be re-factored to include S-Expressions and Q-Expressions, and then immutable variables.
 
 Using the defined grammar, we can then take in a user-inputted expression and evaluate it. Furthermore, error-handling will ensure that the input is of the correct structure as defined by Polish Notation, as well as declare any other errors, such as division by zero.
 
@@ -59,8 +59,10 @@ $	        The end of input is required.
 
 - Compiling code with
   `cc -std=c99 -Wall <file>.c -o <file>`
-- Pointers using `*` after declaring variable type
-- The preprocessor, written starting with `#` , is run before the `main` . Potential uses include importing modules and detecting the OS
+- **Pointers** using `*` after declaring variable type
+- **Function pointers** can be defined as
+  `typedef TYPE*(*func_name) (params);`
+- The **preprocessor**, written starting with `#` , is run before the `main` . Potential uses include importing modules and detecting the OS
 - Memory allocation & de-allocation using `malloc()` , `realloc()` and `free()`
 - Idea of **The Stack & The Heap**, in which The Stack is the memory where the program lives including all of its temporary variables, and The Heap is the memory that stores objects with a longer lifespan.
 - Strings end in **null terminators**, `\0`
