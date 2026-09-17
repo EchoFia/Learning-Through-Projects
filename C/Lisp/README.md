@@ -20,6 +20,13 @@ We shall use regular expressions to define a grammar, at its core consisting of 
 
 Using the defined grammar, we can then take in a user-inputted expression and evaluate it. Furthermore, error-handling will ensure that the input is of the correct structure as defined by Polish Notation, as well as declare any other errors, such as division by zero.
 
+Adding in additional functionality will follow a pattern of:
+
+- **Syntax**: Add new rule to the language grammar for this feature
+- **Representation**: Add new data type variation to represent this feature
+- **Parsing**: Add new functions for reading this feature from the abstract syntax tree
+- **Semantics**: Add new functions for evaluating and manipulating this feature.
+
 # What are Regular Expressions?
 
 **Regular expressions** (Regex) are a way of writing grammars for small sections of texts. Regexes are precise and concise, but in exchange, grammars written in them can’t consist of multiple rules. The required regexes for this project are:
@@ -40,6 +47,14 @@ $	        The end of input is required.
 
 **S-Expressions**, or Symbolic Expressions, are used to represent nested lists. Typically, S-Expressions are defined inductively as either an **atom** such as a symbol or number, or two other S-Expressions joined, or **cons**, together. This would naturally involve using **linked lists**. For simplicity, we shall instead represent S-Expressions as variable sized arrays.
 
+**Q-Expressions**, or Quoted Expressions, are expressions that are left un-evaluated. Other lisps typically do this with **macros** such as the quote macro, `'`. Our Q-Expressions can then be used for new operations:
+
+- `list` takes one or more arguments and returns a new Q-Expression containing the arguments
+- `head` takes a Q-Expression and returns a Q-Expression with only the first element
+- `tail` takes a Q-Expression and returns a Q-Expression with the first element removed
+- `join` takes one ore more Q-Expressions and returns a Q-Expression of them conjoined together
+- `eval` takes a Q-Expression and evaluates it as if it were an S-Expression
+
 ## New Concepts
 
 - Compiling code with
@@ -51,6 +66,7 @@ $	        The end of input is required.
 - Strings end in **null terminators**, `\0`
 - `struct`'s referencing themselves must only reference pointers to themselves
 - Functions can refer to each other - to do so, define one of them with no body (replaced by a semi-colon), then define the other function and then the original.
+- **Macros** are preprocessor statements for creating function-like things. Here, we use them to clean up error-handling
 
 ## New Libraries
 
@@ -76,3 +92,6 @@ $	        The end of input is required.
   - `realloc(x, M)` re-allocates `x` `M` `TYPE`'s of memory and returns a pointer
   - `free(x)`de-allocates the memory of variable `x`
   - `sizeof(x)` returns the size of the memory allocated to variable `x`
+  - `memcpy(a, b, N)` copies `N` bytes from `b` to `a`, and works quickly and with raw memory addresses regardless of data types.
+  - `memmove(a, b, N)` copies `N` bytes from `b` to `a`, but going through an intermediate buffer which prevents problems with overlapping strings.
+  - `&x` gives you the memory location of variable `x`

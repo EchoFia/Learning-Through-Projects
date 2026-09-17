@@ -1,2 +1,5 @@
 # Debugging Files
 *.dSYM
+
+# Mac Files
+*.DS_Store
