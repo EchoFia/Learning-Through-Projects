@@ -16,7 +16,7 @@ This project involves building a lisp based on the Polish Notation for arithmeti
 2 * 3 * 6   is written as  * 2 3 6
 ```
 
-We shall use regular expressions to define a grammar, at its core consisting of numbers, operators and expressions, in which an expression is defined as either a number or an operator followed by one or more expressions. This shall then be re-factored to include S-Expressions and Q-Expressions, and then immutable variables.
+We shall use regular expressions to define a grammar, at its core consisting of numbers, operators and expressions, in which an expression is defined as either a number or an operator followed by one or more expressions. This shall then be re-factored to include S-Expressions and Q-Expressions.
 
 Using the defined grammar, we can then take in a user-inputted expression and evaluate it. Furthermore, error-handling will ensure that the input is of the correct structure as defined by Polish Notation, as well as declare any other errors, such as division by zero.
 
@@ -26,6 +26,8 @@ Adding in additional functionality will follow a pattern of:
 - **Representation**: Add new data type variation to represent this feature
 - **Parsing**: Add new functions for reading this feature from the abstract syntax tree
 - **Semantics**: Add new functions for evaluating and manipulating this feature.
+
+We shall then add the ability to define immutable variables, and then functions. We shall extend the functions to allow for those with a variable number of parameters, indicated by the `?` symbol. Also, a function that is passed fewer arguments than it has parameters shall return a new function in which the give arguments have replaced their corresponding parameters. This is somewhat the idea of **partial evaluation**.
 
 # What are Regular Expressions?
 
@@ -87,6 +89,12 @@ $	        The end of input is required.
 - Enumerations using `enum {}`to assign integer values from 0 to a list of variables under the hood
 - Ternary operator using
   `(*condition*) ? *expressionTrue* : *expressionFalse*;`
+- Functions with variable number of arguments:
+  - `...` is used at the end of the arguments when defining a function with variable arguments
+  - `va_list va` creates `va` of type `va_list`
+  - `va_start(va, <arg>)` , where `<arg>` is the name of the argument that precedes the `...` , initialises `va` to absorb the additional arguments
+  - `vsnprint()` works similarly to `printf()` but can take on `va_list` objects
+  - All `va_list` objects must be cleaned up with `va_end(va)`
 
 - Field access of pointer types uses `->` , i.e. to access the x-coordinate of a struct variable `coord pos` would be `pos.x` , but of a struct pointer variable `coord* pos` would be `pos->x` .
 - Memory allocation & managing:
