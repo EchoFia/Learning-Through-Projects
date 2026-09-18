@@ -807,7 +807,7 @@ int main(int argc, char** argv) {
 		",
 		Number, Symbol, Sexpr, Qexpr, Expr, Lispy);
 		
-  puts("Lispy Version 0.0.0.0.4");
+  puts("Lispy Version 0.0.0.5.0");
   puts("Press Ctrl+c to Exit\n");
   
   lenv* e = lenv_new();
