@@ -1,6 +1,0 @@
-; Makes it easier to define functions using "fun"
-(def {fun} (\ {args body} {def (head args) (\ (tail args) body)}))
-
-(def {x} 100)
-
-(+ x 1)

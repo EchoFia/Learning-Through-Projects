@@ -29,7 +29,7 @@ Adding in additional functionality will follow a pattern of:
 
 We shall then add the ability to define immutable variables, and then functions. We shall extend the functions to allow for those with a variable number of parameters, indicated by the `?` symbol. Also, a function that is passed fewer arguments than it has parameters shall return a new function in which the give arguments have replaced their corresponding parameters. This is somewhat the idea of **partial evaluation**.
 
-Finally, we shall add the ability to process strings, as currently symbols can’t have spaces. This allows for us to build a function, `load`, that can read in text files and evaluate them. The code contains the bare essentials for a lisp, and most other functions can be defined in separate files that can then be imported.
+Finally, we shall add the ability to process strings, as currently symbols can’t have spaces. This allows for us to build a function, `load`, that can read in text files and evaluate them. The code contains the bare essentials for a lisp, and most other functions can be defined in separate files that can then be imported, which is demonstrated in the `stdlib.lspy` file.
 
 # What are Regular Expressions?
 
