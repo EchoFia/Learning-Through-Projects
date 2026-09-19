@@ -1,0 +1,11 @@
+(load "stdlib.lspy")
+
+(fun {array_extend n l} { 
+    if (== n (len l))
+        {l}
+        {array_extend n (join l (list (+ 1 (len l))))}
+})
+
+(fun {array n} {array_extend n {} })
+
+(print(array 5))
