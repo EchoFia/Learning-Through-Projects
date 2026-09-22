@@ -9,17 +9,6 @@ int row[9][9][2];
 int col[9][9][2];
 int box[9][9][2];
 
-// int x_found(int x, int unit[9][2]) { 
-//     int result = 0;
-//     for (int i = 0; i < 9 && !result; i++) {
-//         int iR = unit[i][0];
-//         int iC = unit[i][1];
-//         int *cands = grid[iR][iC];
-//         result = (cands[0] == 1) && cands[x];
-//     }
-//     return result;
-// }
-
 /* Generating the sudoku */
 
 // NOTE: Later on, will actually generate sudokus, for now will just import one
@@ -63,7 +52,7 @@ void init_grid(int array[9][9]) {
     for (int i = 0; i < 9; i++) {
         for (int j = 0; j < 9; j++) {
             if (grid[i][j][0] == 1) {
-                new_solved_number(i, j);
+                new_solved_digit(i, j);
             }
         }
     }
@@ -126,13 +115,13 @@ int main() {
         {0, 0, 0,   0, 0, 0,   0, 0, 0},
         {0, 0, 0,   2, 0, 1,   9, 5, 8},
 
-        {0, 5, 0,   0, 0, 6,   0, 0, 0},
-        {6, 0, 0,   0, 2, 8,   0, 7, 9},
-        {0, 0, 0,   1, 0, 0,   8, 6, 0},
+        // {0, 5, 0,   0, 0, 6,   0, 0, 0},
+        // {6, 0, 0,   0, 2, 8,   0, 7, 9},
+        // {0, 0, 0,   1, 0, 0,   8, 6, 0},
 
-        // {0, 5, 6,   0, 0, 0,   0, 4, 0},
-        // {1, 0, 0,   0, 2, 8,   0, 7, 9},
-        // {2, 0, 0,   1, 0, 0,   8, 3, 0},
+        {0, 0, 0,   0, 0, 0,   0, 4, 0},
+        {1, 0, 0,   0, 0, 8,   0, 7, 9},
+        {0, 0, 0,   1, 0, 0,   8, 3, 0},
     };
 
     init_grid(array);
@@ -148,13 +137,14 @@ int main() {
     //     print_grid(1);
     // }
 
-    print_grid(1);
+    print_grid(0);
 
-    // check_hidden_pair(row[2], "row", 2);
-    int z = hidden_pair();
-    printf("%i\n", z);
+    // check_box_line(box[2], col[7], 2, "col", 7);
+    // box_line();
+    naked_pair();
+    // unique_cand();
 
-    print_grid(1);
+    print_grid(0);
 
     return 0;
 

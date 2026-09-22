@@ -1,6 +1,7 @@
 /* Libraries */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "maths.h"
 
 /* Global Variables */
@@ -9,34 +10,97 @@ extern int row[9][9][2];
 extern int col[9][9][2];
 extern int box[9][9][2];
 
-/* Cleaning Up */
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* Co-ords Handling */
+
+typedef struct coords coords;
+
+/* A VLA for storing co-ords */
+struct coords {
+    int count;
+    int** arr;
+};
+
+coords init_coords() {
+    coords cells;
+    cells.count = 0;
+    cells.arr = malloc(cells.count * sizeof(int*));
+    cells.arr[0] = malloc(cells.count * 2 * sizeof(int));
+    return cells;
+}
+
+/* NOTE: Hardcoded for co-ords to be 2D */
+coords add_coord(coords cells, int rc[2]) {
+    cells.count++;
+    cells.arr = realloc(cells.arr, cells.count * sizeof(int*));
+
+    cells.arr[0] = realloc(cells.arr[0], cells.count * 2 * sizeof(int));
+    /* All the memory is allocated to arr[0], which means the whole grid is stored together */
+    /* As such, points to arr[i] will be right after arr[0] in memory */
+    for(int i = 1; i < cells.count; i++) {
+        cells.arr[i] = cells.arr[0] + i * 2; // 2 because coords have dim 2
+    }
+
+    cells.arr[cells.count-1][0] = rc[0];
+    cells.arr[cells.count-1][1] = rc[1];
+    return cells;
+}
+
+void del_coords(coords cells) {
+    /* Order is important to free() inwards out */
+    free(cells.arr[0]);
+    free(cells.arr);
+}
+
+/* Creates a 'cords' struct for a unit */
+coords unit_to_coords(int unit[9][2]) {
+    coords cells = init_coords();
+    for (int i = 0; i < 9; i++) {
+        cells = add_coord(cells, unit[i]);
+    }
+    return cells;
+}
+
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* Cleaning Up Grid */
+
+///// MAYBE MAKE SO IT CHECKS IF IT REMOVED ANYTHING????!!!!
+/* Removes 'x' as a candidate from cell (r, c) */
+void x_remove_single(int x, int r, int c) {
+    grid[r][c][x] = 0;
+    grid[r][c][0] = get_sum_subsection(grid[r][c], 1, 10);
+}
+
+/* Removes 'x' as a candidate from all cells in 'coords' */
+void x_remove_block(int x, coords cells) {
+    for (int i = 0; i < cells.count; i++) {
+        x_remove_single(x, cells.arr[i][0], cells.arr[i][1]);
+    }
+}
 
 /* Removes 'x' as a candidate from all un-solved cells in 'unit' */
-void x_remove(int x, int unit[9][2]) {
-    int m;
-    int n;
+// MAYBE USE THE BLOCK FUNCTION???!!!!
+void x_remove_unit_unsolv(int x, int unit[9][2]) {
     for (int i = 0; i < 9; i++) {
-        m = unit[i][0];
-        n = unit[i][1];
 
-        if (!grid[m][n][10]) {
-            grid[m][n][x] = 0;
-            grid[m][n][0] = get_sum_subsection(grid[m][n], 1, 10);
+        if (!grid[unit[i][0]][unit[i][1]][10]) {
+            x_remove_single(x, unit[i][0], unit[i][1]);
         }
     }
 }
 
 /* Updates the rest of the grid's candidates */
-void new_solved_number(int r, int c) {
+void new_solved_digit(int r, int c) {
     
     /* Extract what the new digit is */
     int x = grid[r][c][10];
 
     /* Remove 'x' as a possibility from its row, column and box */
-    x_remove(x, row[r]);
-    x_remove(x, col[c]);
-    x_remove(x, box[calc_box(r, c)]);
-
+    x_remove_unit_unsolv(x, row[r]);
+    x_remove_unit_unsolv(x, col[c]);
+    x_remove_unit_unsolv(x, box[calc_box(r, c)]);
 }
 
 /* Initiates grid clean up when a digit, 'x', is solved */
@@ -53,54 +117,12 @@ void solve_digit(int x, int r, int c) {
     grid[r][c][10] = x;
 
     /* Updates the grid */
-    new_solved_number(r, c);
+    new_solved_digit(r, c);
 }
 
-// Function to check if any cells other than 2 have candidates x & y (will update to be variable number of each!!!!)
-int check_cand_excl(int unit[9][2], int i, int j, int x, int y) {
-    int flag = 0;
-    int m, n;
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
-    for (int a = 0; a < 9 && !flag; a++) { 
-        if (!(a == i || a == j)) {
-            m = unit[a][0];
-            n = unit[a][1];
-            flag = flag || grid[m][n][x]; // x is the number to be excluded
-            flag = flag || grid[m][n][y];
-        }
-    }
-
-    return flag;
-}
-
-// Function to remove a pair of candidates from all cells bar the original pair cells; UPDATE FOR UNLIMITED VARIABLES!!!!
-void cleanup_cand_excl(int unit[9][2], int i, int j, int x, int y) {
-    int m, n;
-
-    for (int a = 0; a < 9; a++) { 
-        if (!(a == i || a == j)) {
-            // printf("%i, ", a); // !!!!!!
-            m = unit[a][0];
-            n = unit[a][1];
-            grid[m][n][x] = 0;
-            grid[m][n][y] = 0;
-            grid[m][n][0] = get_sum_subsection(grid[m][n], 1, 10);
-        }
-    }
-}
-
-/* Misc */
-
-/* A function to return true if every potential candidate of 2 cells is identical */
-int compare_candidates(int r1, int c1, int r2, int c2) {
-    int flag = 1;
-
-    for (int i = 1; i < 10; i++) {
-        flag = flag && (grid[r1][c1][i] == grid[r2][c2][i]);
-    }
-
-    return flag;
-}
+/* Retrieving Info from the Grid */
 
 /* Gets the list of candidates from a cell */
 /* NOTE: Remember to free(cands) after use */
@@ -119,22 +141,68 @@ int* get_cands(int r, int c) {
     return cands;
 }
 
-/* Get the number of time 'x' is a candidate in a unit */
-int get_x_freq_unit(int unit[9][2], int x) {
-    int count = 0;
-    int m, n;
+/* A function to return true if every potential candidate of 2 cells is identical */
+int comp_cands(int rc1[2], int rc2[2]) {
+    int result = 1;
 
-    for (int i = 0; i < 9; i++) {
-        m = unit[i][0];
-        n = unit[i][1];
-        count += grid[m][n][x];
+    int r1 = rc1[0];
+    int r2 = rc2[0];
+    int c1 = rc1[1];
+    int c2 = rc2[1];
+
+    for (int i = 1; i < 10; i++) {
+        result = result && (grid[r1][c1][i] == grid[r2][c2][i]);
+    }
+
+    return result;
+}
+
+/* Calculates frequency of 'x' in a set of 'coords' */
+int x_freq_block(int x, coords cells) {
+    int count = 0;
+
+    for (int i = 0; i < cells.count; i++) {
+        count += grid[cells.arr[i][0]][cells.arr[i][1]][x];
     }
 
     return count;
 }
 
+/* Calculates frequency of 'x' in 'unit' */
+int x_freq_unit(int x, int unit[9][2]) {
+    coords cells = unit_to_coords(unit);
+    int count = x_freq_block(x, cells);
+    del_coords(cells);
+    return count;
+}
+
+/* Returns 1 if 'x' is solved in 'cells' */
+int x_solved_block(int x, coords cells) {
+    int result = 0;
+    for (int i = 0; i < cells.count && !result; i++) {
+        int *cands = grid[cells.arr[i][0]][cells.arr[i][1]];
+        result = (cands[10] > 0) && cands[x];
+    }
+
+    return result;
+}
+
+///// CAN I JUST HAVE ONE FUNCTION THAT CAN BE PASSED ANOTHER FUNCTION??? TO DO ALL OF THESE BLOCK TO UNIT THINGS???!!!
+
+/* Returns 1 if 'x' is solved in 'unit' */
+int x_solved_unit(int x, int unit[9][2]) {
+    coords cells = unit_to_coords(unit);
+    int count = x_solved_block(x, cells);
+    del_coords(cells);
+    return count;
+}
+
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* Misc */
+
 /* Find which cells in a unit have 'x' as a candidate */
-/* NOTE: Rremember to free(indices) after use */
+/* NOTE: Remember to free(indices) after use */
 int* find_x_cand_unit(int unit[9][2], int x) {
     int count = 0;
     int* indices = malloc(count * sizeof(int));
@@ -167,20 +235,44 @@ int compare_arrays(int* a, int* b) {
     }
 }
 
+/* Returns 'TRUE' if 'x' is in 'arr' */
+int int_in_array(int x, int* arr, int length) {
+    int result = 0;
+    for (int i = 0; i < length && !result; i++) {
+        result = (x == arr[i]);
+    }
+    return result;
+}
+
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
 /* Level 0 Strategies */
 
+/* Loops through the grid to look for Naked Singles */
 int naked_single() {
+
+    /* Flag to track if anything in the grid has been updated */
     int prog = 0;
+
+    /* Loops through all cells */
     for (int i = 0; i < 9; i++) {
         for (int j = 0; j < 9; j++) {
+
+            /* If only one candidate but cell isn't labelled as solved */
             if (grid[i][j][0] == 1 && !grid[i][j][10]) {
+
+                /* Finding which candidate is left */
                 for (int k = 1; k < 10 && !grid[i][j][10]; k++) {
                     if (grid[i][j][k]) { 
+
+                        /* Set the 'solved' index to the value of the cell */
                         grid[i][j][10] = k; 
                         printf("Naked Single: placed %i at (%i, %i)\n", k, i, j); 
                     }
                 }
-                new_solved_number(i, j);
+
+                /* Clean up the candidates that share a unit with the newly solved cell */
+                new_solved_digit(i, j);
                 prog = 1;
             }
         }
@@ -189,103 +281,161 @@ int naked_single() {
     return prog;
 }
 
-// Can speed up in the future by maybe not checking every single digit - maybe find which digits in unit have been solved already
-int check_unique(int unit[9][2], char* type, int index) {
-    int m, n, y, a, b;
+/* Checks wihtin a unit if any digit is only a candidate for one cell */
+int check_unique_cand(int unit[9][2], char* type, int index) {
+
+    /* Flag to track if anything in the grid has been updated */
     int prog = 0;
+
     for (int x = 1; x < 10; x++) {
-        int uniq = 0;
-        int solved = 0;
-        for (int i = 0; i < 9; i++) {
-            m = unit[i][0];
-            n = unit[i][1];
-            if (grid[m][n][10] == x) { solved = 1; break; }
-            if (grid[m][n][x]) { uniq++; y = x; a = m; b = n; }
-        }
-        if (uniq == 1 && !solved) {
-            solve_digit(y, a, b);
-            printf("Unique Digit: placed %i at (%i, %i), unique in %s %i\n", y, a, b, type, index);
-            prog = 1;
-        }
-    }
+        /* If 'x' isn't already solved in the unit, and only appears once */
+        if (!x_solved_unit(x, unit) && x_freq_unit(x, unit) == 1) {
+            
+            /* Finding which cell 'x' is a candidate for */
+            for (int i = 0; i < 9; i++) {
+                if (grid[unit[i][0]][unit[i][1]][x]) { 
 
-    return prog;
-}
+                    /* Add in the solved digit to the cell */
+                    solve_digit(x, unit[i][0], unit[i][1]);
 
-int unique() {
-    int prog = 0;
-
-    for (int i = 0; i < 9; i++) {
-        prog = check_unique(row[i], "row", i) || prog;
-        prog = check_unique(col[i], "col", i) || prog;
-        prog = check_unique(box[i], "box", i) || prog;
-    }
-
-    return prog;
-}
-
-/* Level 1 Strategies */
-
-int check_naked_pair(int unit[9][2], char* type, int index) {
-    // Need to find naked pair, then remove those 2 digits from the candidates of every other cell in that unit - no prog if nothing else is removed
-    // There's also naked triples and things like that... could universalise the code to cope with those?
-
-    /* Find all cells with explicitly 2 candidates */
-    int m, n;
-    int count = 0;
-    int *list_possible = malloc(count * sizeof(int)); // Don't need but helps me understand for now
-
-    int flag = 0; // To be returned !!!!!
-
-    for (int i = 0; i < 9; i++) {
-        m = unit[i][0];
-        n = unit[i][1];
-        if (grid[m][n][0] == 2) {
-            count++;
-            list_possible = realloc(list_possible, sizeof(int) * count);
-            list_possible[count - 1] = i;
-        }
-    }
-
-    // for (int i = 0; i < count; i++) { // !!!!!!!
-    //     printf("%i, ", list_possible[i]);
-    // }
-
-    // MAYBE STORE FOUND NAKED PAIRS SO THEY DON'T KEEP FLAGGING???
-
-    for (int i = 0; i < count; i++) {
-        for (int j = 0; j < i; j++) {
-            // printf("\n(%i, %i): %i", list_possible[i], list_possible[j], compare_candidates(unit[list_possible[i]][0], unit[list_possible[i]][1], unit[list_possible[j]][0], unit[list_possible[j]][1]));
-            if (compare_candidates(unit[list_possible[i]][0], unit[list_possible[i]][1], unit[list_possible[j]][0], unit[list_possible[j]][1])) {
-                
-                int* cands = get_cands(unit[list_possible[i]][0], unit[list_possible[i]][1]);
-                if (check_cand_excl(unit, list_possible[i], list_possible[j], cands[0], cands[1])) {
-                    flag = 1;
-                    cleanup_cand_excl(unit, list_possible[i], list_possible[j], cands[0], cands[1]);
-                    printf("Naked Pair: found and useful\n"); // ADD MORE DETAILS LATER !!!!!
-                } else {
-                    printf("Naked Pair: found but not useful\n" ); // ADD MORE DETAILS LATER !!!!!
-                }                
-
-                free(cands);
+                    printf("Unique Candidate: placed %i at (%i, %i), unique in %s %i\n", x, unit[i][0], unit[i][1], type, index);
+                    prog = 1;
+                }
             }
         }
     }
 
-    free(list_possible);
-
-    return flag; ////// CHANGE!!!!!!
+    return prog;
 }
 
-int naked_pair() {
+/* Loops through the grid to look for units with a Unique Candidate */
+int unique_cand() {
+    
+    /* Flag to track if anything in the grid has been updated */
     int prog = 0;
 
     for (int i = 0; i < 9; i++) {
-        prog = check_naked_pair(row[i], "row", i) || prog;
-        prog = check_naked_pair(col[i], "col", i) || prog;
-        prog = check_naked_pair(box[i], "box", i) || prog;
+        prog = check_unique_cand(row[i], "row", i) || prog;
+        prog = check_unique_cand(col[i], "col", i) || prog;
+        prog = check_unique_cand(box[i], "box", i) || prog;
     }
 
+    return prog;
+}
+
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* Generalised Functions for Level 1 & 2 Strategies */
+
+/* Checks for a naked set of size 'z', i.e. if 'z' is 2, it'll be a Naked Pair */
+/* NOTE: Can only find one naked set each time it's passed */
+int check_naked_set(int z, int unit[9][2], char* type, int index) {
+
+    if ((z < 1) || (z > 4)) {
+        printf("Error: z out of range\n");
+        return 0;
+    }
+
+    /* Flag to track if anything in the grid has been updated */
+    int prog = 0;
+
+    int count = 0;
+
+    /* z_cands will be indices relative to 'unit' */
+    int* z_cands = malloc(count * sizeof(int)); // Evaluates to 0 but helps with readability
+
+    /* Find all cells with explicitly 'z' candidates */
+    for (int i = 0; i < 9; i++) {
+        if (grid[unit[i][0]][unit[i][1]][0] == z) {
+            count++;
+            z_cands = realloc(z_cands, count * sizeof(int));
+            z_cands[count - 1] = i;
+        }
+    }
+
+    /* If there's less than 'z' cells with 'z' candidates, there's no chance for a naked set of size 'z' */
+    if (count < z) {
+        ; // MAYBE CHANGE TO PROG????!!!!! FIX - MAKE SURE TO free(z_cands)
+    } else {
+
+        /* Need to have 'z' matching cells with exactly the same candidates */
+        for (int i = 0; i < count; i++) {
+            int num_matching = 1;
+            
+            /* Will store the indices of all matching cells, indexing relative to 'unit' still */
+            int* matching = malloc(num_matching * sizeof(int));
+            matching[0] = z_cands[i];
+
+            /* Can end loop early if there's already enough cells that match */
+            for (int j = 0; j < i && num_matching < z; j++) {
+                if (comp_cands(unit[z_cands[i]], unit[z_cands[j]])) {
+                    num_matching++;
+                    matching = realloc(matching, num_matching * sizeof(int));
+                    matching[num_matching - 1] = z_cands[j];
+                }
+            }
+
+            /* If enough cells match, we've found a naked set */
+            if (num_matching >= z) {
+
+                int* naked_nums = get_cands(unit[matching[0]][0], unit[matching[0]][1]);
+                /* NOTE: There will be 'z' candidates by definition */
+
+                /* Get cells in the unit but not in the naked set */
+                coords cells = init_coords();
+                for (int j = 0; j < 9; j++) {
+                    if (!int_in_array(j, matching, z)) {
+                        cells = add_coord(cells, unit[j]);
+                    }
+                }
+
+                /* For each number in the naked set, check if there's any candidates to remove */
+                for (int j = 0; j < z; j++) {
+                    int x = naked_nums[j];
+                    // printf("%i found %i times\n", x, x_freq_block(x, cells)); ?? REMOVE !!!!!
+                    prog = prog || (x_freq_block(x, cells) > 0);
+                    x_remove_block(x, cells);
+                }
+
+                // CAN MAYBE HAVE A LIST OF KNOWN NAKED SETS TO NOT ALWAYS BE FINDING IT AGAIN
+
+                /* If any candidates were actually removed */
+                if (prog) {
+                    char* terms[3] = {"Pair", "Triple", "Quadruple"};
+                    printf("Naked %s: found in %s %i\n", terms[z-2], type, index); // ADD MORE DETAILS LATER !!!!!
+                }
+
+                free(naked_nums);
+                del_coords(cells);
+            }
+
+            free(matching);
+        }
+    }
+
+    free(z_cands);
+    return prog;
+
+}
+
+int naked_set(int z) {
+    int prog = 0;
+
+    for (int i = 0; i < 9; i++) {
+        prog = check_naked_set(z, row[i], "row", i) || prog;
+        prog = check_naked_set(z, col[i], "col", i) || prog;
+        prog = check_naked_set(z, box[i], "box", i) || prog;
+    }
+
+    return prog;
+}
+
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* Level 1 Strategies */
+
+int naked_pair() {
+    int prog = naked_set(2);
     return prog;
 }
 
@@ -298,7 +448,7 @@ int check_hidden_pair(int unit[9][2], char* type, int index) {
     int* digits = malloc(count * sizeof(int));
 
     for (int i = 1; i < 10; i++) {
-        if (get_x_freq_unit(unit, i) == 2) {
+        if (x_freq_unit(i, unit) == 2) {
             count++;
             digits = realloc(digits, count * sizeof(int));
             digits[count - 1] = i;
@@ -355,5 +505,113 @@ int hidden_pair() {
         prog = check_hidden_pair(box[i], "box", i) || prog;
     }
 
+    return prog;
+}
+
+int check_box_line(int unit_box[9][2], int unit_line[9][2], int box_index, char* line_type, int line_index) {
+    int prog = 0;
+    int box_overlap_indices[3];
+    int line_overlap_indices[3];
+
+    // ADD A CHECK TO MAKE SURE THEY OVERLAP
+
+    // unit_box & unit_line should overlap by exactly 3 squares
+    if (strcmp(line_type, "col") == 0) { 
+       box_overlap_indices[0] = line_index % 3;
+       box_overlap_indices[1] = line_index % 3 + 3;
+       box_overlap_indices[2] = line_index % 3 + 6; // MAYBE FUNCTIONALISE?
+       line_overlap_indices[0] = box_index / 3 * 3;
+       line_overlap_indices[1] = box_index / 3 * 3 + 1;
+       line_overlap_indices[2] = box_index / 3 * 3 + 2;
+    //    printf("%i, ", compare_arrays(unit_box[box_overlap_indices[2]], unit_line[line_overlap_indices[2]]));
+    } else if (strcmp(line_type, "row") == 0) {
+        box_overlap_indices[0] = line_index % 3 * 3;
+        box_overlap_indices[1] = line_index % 3 * 3 + 1;
+        box_overlap_indices[2] = line_index % 3 * 3 + 2; // MAYBE FUNCTIONALISE?
+        line_overlap_indices[0] = box_index % 3 * 3;
+        line_overlap_indices[1] = box_index % 3 * 3 + 1;
+        line_overlap_indices[2] = box_index % 3 * 3 + 2;
+        // printf("%i, ", compare_arrays(unit_box[box_overlap_indices[1]], unit_line[line_overlap_indices[1]]));
+    } else {
+        printf("ERROR: Not given 'box' or 'col'\n");
+        return 0;
+    }
+
+    // NEED TO CHECK THE NON-OVERLAP && OVERLAP - CHANGE VARIABLE NAMES
+    coords line_not_box = init_coords();
+    coords box_not_line = init_coords();
+
+    for (int i = 0; i < 9; i++) {
+        // CHANGE TO NICER FUNCTION !!!!!
+        if (i != line_overlap_indices[0] && i != line_overlap_indices[1] && i != line_overlap_indices[2]) {
+            line_not_box = add_coord(line_not_box, unit_line[i]);
+        }
+
+        if (i != box_overlap_indices[0] && i != box_overlap_indices[1] && i != box_overlap_indices[2]) {
+            box_not_line = add_coord(box_not_line, unit_box[i]);
+        }
+    }
+
+    // Check if the digit is solved in either the box or line
+    for (int x = 1; x < 10; x++) {
+        if (x_solved_unit(x, unit_box)) { continue; }
+        else if (x_solved_unit(x, unit_line)) { continue; }
+        else {
+
+            /* Only if there are no 'x' candidates on the line outside the box */
+            if (x_freq_block(x, line_not_box) == 0 && x_freq_block(x, box_not_line) > 0) {
+
+                printf("%i", x_freq_block(x, box_not_line));
+
+                // int ran_var = x_freq_block(x, box_not_line);
+                printf("Box-Line: Digit %i must be in %s %i in box %i\n", x, line_type, line_index, box_index);
+
+                /* Clean up the non-overlapping region of the box */
+                x_remove_block(x, box_not_line);
+                prog = 1;
+            }
+
+            // int ran_var = x_freq_block(x, line_not_box);
+            // printf("Number of %i's: %i, in %s %i but not box %i\n", x, ran_var, line_type, line_index, box_index);
+
+        }
+    }
+
+    del_coords(line_not_box);
+    del_coords(box_not_line);
+
+    return prog;
+}
+
+int box_line() {
+    int prog = 0;
+    int row_index, col_index;
+
+    for (int i = 0; i < 9; i++) {
+        /* Rows for box 'i' */
+        for (int j = 0; j < 3; j++) {
+            row_index = i / 3 * 3 + j;
+            col_index = i % 3 * 3 + j;
+            prog = check_box_line(box[i], row[row_index], i, "row", row_index) || prog;
+            prog = check_box_line(box[i], col[col_index], i, "col", col_index) || prog;
+        }
+    }
+
+    return prog;
+}
+
+// Pointing line can just use the same function but with box adn line switched - DOUBLE CHECK
+
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* Level 2 Strategies */
+
+int naked_triple() {
+    int prog = naked_set(3);
+    return prog;
+}
+
+int naked_quadruple() {
+    int prog = naked_set(4);
     return prog;
 }
