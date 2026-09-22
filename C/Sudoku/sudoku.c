@@ -140,19 +140,21 @@ int main() {
     ///// OOh, have a flag for each strategy, like an index, and then have the solver function have a queue of which strategies to do next, and each strategy can add things that might work after it, as well as a general one that adds just one of each
 
     /* A flag to know if any progress is being made */
-    int prog = 1;
-    while (prog) { 
-        prog = naked_single();
-        // prog = progress || unique();
-        prog = naked_pair();
-        print_grid(1);
-    }
+    // int prog = 1;
+    // while (prog) { 
+    //     prog = naked_single();
+    //     // prog = progress || unique();
+    //     prog = naked_pair();
+    //     print_grid(1);
+    // }
 
-    print_grid(0);
+    print_grid(1);
 
-    // check_naked_pair(box[8], "box", 8);
+    // check_hidden_pair(row[2], "row", 2);
+    int z = hidden_pair();
+    printf("%i\n", z);
 
-    // print_grid(0);
+    print_grid(1);
 
     return 0;
 

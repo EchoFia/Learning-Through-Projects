@@ -8,6 +8,9 @@ void cleanup_cand_excl(int unit[9][2], int i, int j, int x, int y);
 /* Misc */
 int compare_candidates(int r1, int c1, int r2, int c2);
 int* get_cands(int r, int c);
+int get_x_freq_unit(int unit[9][2], int x);
+int* find_x_cand_unit(int unit[9][2], int x);
+int compare_arrays(int* a, int* b);
 
 /* Level 0 Strategies */
 int naked_single();
@@ -17,3 +20,5 @@ int unique();
 /* Level 1 Strategies */
 int check_naked_pair(int unit[9][2], char* type, int index);
 int naked_pair();
+int check_hidden_pair(int unit[9][2], char* type, int index);
+int hidden_pair();

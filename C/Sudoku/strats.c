@@ -119,6 +119,54 @@ int* get_cands(int r, int c) {
     return cands;
 }
 
+/* Get the number of time 'x' is a candidate in a unit */
+int get_x_freq_unit(int unit[9][2], int x) {
+    int count = 0;
+    int m, n;
+
+    for (int i = 0; i < 9; i++) {
+        m = unit[i][0];
+        n = unit[i][1];
+        count += grid[m][n][x];
+    }
+
+    return count;
+}
+
+/* Find which cells in a unit have 'x' as a candidate */
+/* NOTE: Rremember to free(indices) after use */
+int* find_x_cand_unit(int unit[9][2], int x) {
+    int count = 0;
+    int* indices = malloc(count * sizeof(int));
+    int m, n;
+
+    for (int i = 1; i < 10; i++) {
+        m = unit[i][0];
+        n = unit[i][1];
+        if (grid[m][n][x]) {
+            count++;
+            indices = realloc(indices, count * sizeof(int));
+            indices[count - 1] = i;
+        }
+    }
+
+    return indices;
+}
+
+// STRUGGLES WITH POINTERS, WILL HAVE TO SAVE SOMEWHERE ELSE!!! WILL JUST SAVE AS 2 HARD CODED FOR NOW
+int compare_arrays(int* a, int* b) {
+    // WORKS BECAUSE a AND b ARE BOTH int TYPE
+    if (sizeof(*a) != sizeof(*b)) {
+        return 0;
+    } else {
+        // for (int i = 0; i < (sizeof(*a) / sizeof(int)); i++) {
+        for (int i = 0; i < 2; i++) {
+            if (a[i] != b[i]) { return 0; }
+        }
+        return 1;
+    }
+}
+
 /* Level 0 Strategies */
 
 int naked_single() {
@@ -236,6 +284,75 @@ int naked_pair() {
         prog = check_naked_pair(row[i], "row", i) || prog;
         prog = check_naked_pair(col[i], "col", i) || prog;
         prog = check_naked_pair(box[i], "box", i) || prog;
+    }
+
+    return prog;
+}
+
+int check_hidden_pair(int unit[9][2], char* type, int index) {
+
+    int prog = 0;
+    
+    /* Check what digits only appear twice in the unit */
+    int count = 0;
+    int* digits = malloc(count * sizeof(int));
+
+    for (int i = 1; i < 10; i++) {
+        if (get_x_freq_unit(unit, i) == 2) {
+            count++;
+            digits = realloc(digits, count * sizeof(int));
+            digits[count - 1] = i;
+        }
+    }
+
+    // CAN TIDY UP AND MAKE QUICKER BY FINDING ALL AT START
+    for (int i = 0; i < count; i++) {
+        for (int j = 0; j < i; j++) {
+            int* indsI = find_x_cand_unit(unit, digits[i]);
+            int* indsJ = find_x_cand_unit(unit, digits[j]);
+
+            if (compare_arrays(indsI, indsJ)) {
+                // printf("For i: (%i, %i)\n", indsI[0], indsI[1]);
+                // printf("For j: (%i, %i)\n", indsJ[0], indsJ[1]);
+
+
+                // CAN FUNCTIONALISE IN THE FUTURE, JUST GONNA PUT THE CLEAN UP HERE
+                for (int x = 0; x < 9; x++) {
+                    int m = unit[x][0];
+                    int n = unit[x][1];
+                    if (grid[m][n][digits[i]]) {
+                        prog = prog || (grid[m][n][0] > 2);
+                        /* Set all other candidates to 0 */
+                        for (int y = 1; y < 10; y++) { 
+                            grid[m][n][y] = 0;
+                        }
+                        grid[m][n][digits[i]] = 1;
+                        grid[m][n][digits[j]] = 1;
+                        grid[m][n][0] = 2;
+                    }
+                }
+
+                // Problem of what if no prog? With naked pair, will keep triggering each other
+                // Do i need another flag?
+                printf("Hidden Pair: Digits %i and %i in %s %i\n", digits[i], digits[j], type, index);
+            }
+
+
+            free(indsI);
+            free(indsJ);
+        }
+    }
+
+    return prog;
+}
+
+int hidden_pair() {
+    int prog = 0;
+
+    for (int i = 0; i < 9; i++) {
+        prog = check_hidden_pair(row[i], "row", i) || prog;
+        prog = check_hidden_pair(col[i], "col", i) || prog;
+        prog = check_hidden_pair(box[i], "box", i) || prog;
     }
 
     return prog;
