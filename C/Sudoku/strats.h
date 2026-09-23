@@ -1,5 +1,12 @@
 /* Co-ords Handling */
 typedef struct coords coords;
+
+/* A VLA for storing co-ords */
+struct coords {
+    int count;
+    int** arr;
+};
+
 coords init_coords();
 coords add_coord(coords coords, int rc[2]);
 void del_coords(coords coords);
@@ -24,6 +31,7 @@ int* find_x_cand_unit(int unit[9][2], int x);
 /* Misc - REORGANISE */
 int compare_arrays(int* a, int* b, int len_a, int len_b);
 int int_in_array(int x, int* arr, int length);
+int coord_in_array(int rc[2], coords cells);
 
 /* Level 0 Strategies */
 int naked_single();
@@ -39,9 +47,11 @@ int hidden_set(int z);
 /* Level 1 Strategies */
 int naked_pair();
 int hidden_pair();
-int new_hidden_pair();
-int check_box_line(int unit_box[9][2], int unit_line[9][2], int box_index, char* line_type, int line_index);
+coords non_overlap_blocks(coords cells_a, coords cells_b);
+coords non_overlap_units(int unit_a[9][2], int unit_b[9][2]);
+int check_overlapping_units(int unit_a[9][2], int unit_b[9][2], char* a_type, int a_index, char* b_type, int b_index, char* strat_name);
 int box_line();
+int pointing_line();
 
 /* Level 2 Strategies */
 int naked_triple();
