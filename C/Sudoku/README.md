@@ -40,7 +40,8 @@ Based on the book _Sudoku Programming with C_, I shall implement 5 levels of str
 ## Level 2 Strategies
 
 - **Naked Triple**: Same concept as Naked Pair
-- **Naked Quadruple**: Same concept as naked Pair
+- **Naked Quadruple**: Same concept as Naked Pair
+- **Hidden Triple**: Same concept as Hidden Pair
 
 ## New Concepts
 

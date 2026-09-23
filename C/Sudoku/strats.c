@@ -2,9 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "strats.h"
 #include "maths.h"
+#include "grid.h"
 
-/* Global Variables */
+/* Import Global Variables */
 extern int grid[9][9][11];
 extern int row[9][9][2];
 extern int col[9][9][2];
@@ -13,14 +15,6 @@ extern int box[9][9][2];
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
 /* Co-ords Handling */
-
-typedef struct coords coords;
-
-/* A VLA for storing co-ords */
-struct coords {
-    int count;
-    int** arr;
-};
 
 coords init_coords() {
     coords cells;
@@ -233,10 +227,20 @@ int compare_arrays(int* a, int* b, int len_a, int len_b) {
 }
 
 /* Returns 'TRUE' if 'x' is in 'arr' */
+// Anyway to have it calculate LEN?? I WAS STRUGGLING WITH IT BEING A POINTER!!!!!
 int int_in_array(int x, int* arr, int length) {
     int result = 0;
     for (int i = 0; i < length && !result; i++) {
         result = (x == arr[i]);
+    }
+    return result;
+}
+
+/* Returns 'TRUE' if the cell 'rc[2]' is in 'cells' */
+int coord_in_array(int rc[2], coords cells) {
+    int result = 0;
+    for (int i = 0; i < cells.count && !result; i++) {
+        result = (rc[0] == cells.arr[i][0] && rc[1] == cells.arr[i][1]);
     }
     return result;
 }
@@ -388,7 +392,6 @@ int check_naked_set(int z, int unit[9][2], char* type, int index) {
                 /* For each number in the naked set, check if there's any candidates to remove */
                 for (int j = 0; j < z; j++) {
                     int x = naked_nums[j];
-                    // printf("%i found %i times\n", x, x_freq_block(x, cells)); ?? REMOVE !!!!!
                     prog = prog || (x_freq_block(x, cells) > 0);
                     x_remove_block(x, cells);
                 }
@@ -542,66 +545,66 @@ int hidden_pair() {
     return prog;
 }
 
-int check_box_line(int unit_box[9][2], int unit_line[9][2], int box_index, char* line_type, int line_index) {
+
+/* Will get the co-ords of 'cells_a' that don't overlap with 'cells_b' */
+/* Make sure to del_coords() to clean up memory */
+coords non_overlap_blocks(coords cells_a, coords cells_b) {
+
+    coords cells_a_not_b = init_coords();
+
+    for (int i = 0; i < cells_a.count; i++) {
+        if (!coord_in_array(cells_a.arr[i], cells_b)) {
+            cells_a_not_b = add_coord(cells_a_not_b, cells_a.arr[i]);
+        }
+    }
+
+    return cells_a_not_b;
+}
+
+
+coords non_overlap_units(int unit_a[9][2], int unit_b[9][2]) {
+
+    coords cells_a = unit_to_coords(unit_a);
+    coords cells_b = unit_to_coords(unit_b);
+
+    coords cells_a_not_b = non_overlap_blocks(cells_a, cells_b);
+
+    del_coords(cells_a);
+    del_coords(cells_b);
+
+    return cells_a_not_b;
+
+}
+
+
+int check_overlapping_units(int unit_a[9][2], int unit_b[9][2], char* a_type, int a_index, char* b_type, int b_index, char* strat_name) {
+
+    /* Flag to track if anything in the grid has been updated */
     int prog = 0;
-    int box_overlap_indices[3];
-    int line_overlap_indices[3];
 
-    // ADD A CHECK TO MAKE SURE THEY OVERLAP
+    coords cells_a_not_b = non_overlap_units(unit_a, unit_b);
+    coords cells_b_not_a = non_overlap_units(unit_b, unit_a);
 
-    // unit_box & unit_line should overlap by exactly 3 squares
-    if (strcmp(line_type, "col") == 0) { 
-       box_overlap_indices[0] = line_index % 3;
-       box_overlap_indices[1] = line_index % 3 + 3;
-       box_overlap_indices[2] = line_index % 3 + 6; // MAYBE FUNCTIONALISE?
-       line_overlap_indices[0] = box_index / 3 * 3;
-       line_overlap_indices[1] = box_index / 3 * 3 + 1;
-       line_overlap_indices[2] = box_index / 3 * 3 + 2;
-    //    printf("%i, ", compare_arrays(unit_box[box_overlap_indices[2]], unit_line[line_overlap_indices[2]]));
-    } else if (strcmp(line_type, "row") == 0) {
-        box_overlap_indices[0] = line_index % 3 * 3;
-        box_overlap_indices[1] = line_index % 3 * 3 + 1;
-        box_overlap_indices[2] = line_index % 3 * 3 + 2; // MAYBE FUNCTIONALISE?
-        line_overlap_indices[0] = box_index % 3 * 3;
-        line_overlap_indices[1] = box_index % 3 * 3 + 1;
-        line_overlap_indices[2] = box_index % 3 * 3 + 2;
-        // printf("%i, ", compare_arrays(unit_box[box_overlap_indices[1]], unit_line[line_overlap_indices[1]]));
-    } else {
-        printf("ERROR: Not given 'box' or 'col'\n");
+    /* Checks if the units overlap */
+    if(cells_a_not_b.count == 9) {
+        printf("Error: Passed in units that don't overlap\n"); ///// ADD MORE DETAIL!!!!
         return 0;
     }
 
-    // NEED TO CHECK THE NON-OVERLAP && OVERLAP - CHANGE VARIABLE NAMES
-    coords line_not_box = init_coords();
-    coords box_not_line = init_coords();
-
-    for (int i = 0; i < 9; i++) {
-        // CHANGE TO NICER FUNCTION !!!!!
-        if (i != line_overlap_indices[0] && i != line_overlap_indices[1] && i != line_overlap_indices[2]) {
-            line_not_box = add_coord(line_not_box, unit_line[i]);
-        }
-
-        if (i != box_overlap_indices[0] && i != box_overlap_indices[1] && i != box_overlap_indices[2]) {
-            box_not_line = add_coord(box_not_line, unit_box[i]);
-        }
-    }
-
-    // Check if the digit is solved in either the box or line
     for (int x = 1; x < 10; x++) {
-        if (x_solved_unit(x, unit_box)) { continue; }
-        else if (x_solved_unit(x, unit_line)) { continue; }
+
+        // Check if the digit is solved in either the box or line
+        if (x_solved_unit(x, unit_a) || x_solved_unit(x, unit_b)) { continue; }
+
         else {
 
-            /* Only if there are no 'x' candidates on the line outside the box */
-            if (x_freq_block(x, line_not_box) == 0 && x_freq_block(x, box_not_line) > 0) {
+            /* Only if no 'x' candidates in 'cells_b_not_a' and are 'x' candidates to remove in 'cells_a_not_b */
+            if (x_freq_block(x, cells_b_not_a) == 0 && x_freq_block(x, cells_a_not_b) > 0) {
 
-                // printf("%i", x_freq_block(x, box_not_line));
-
-                // int ran_var = x_freq_block(x, box_not_line);
-                printf("Box-Line: Digit %i must be in %s %i in box %i\n", x, line_type, line_index, box_index);
+                printf("%s: Digit %i must be in %s %i in %s %i\n", strat_name, x, b_type, b_index, a_type, a_index);
 
                 /* Clean up the non-overlapping region of the box */
-                x_remove_block(x, box_not_line);
+                x_remove_block(x, cells_a_not_b);
                 prog = 1;
             }
 
@@ -611,8 +614,8 @@ int check_box_line(int unit_box[9][2], int unit_line[9][2], int box_index, char*
         }
     }
 
-    del_coords(line_not_box);
-    del_coords(box_not_line);
+    del_coords(cells_a_not_b);
+    del_coords(cells_b_not_a);
 
     return prog;
 }
@@ -626,15 +629,30 @@ int box_line() {
         for (int j = 0; j < 3; j++) {
             row_index = i / 3 * 3 + j;
             col_index = i % 3 * 3 + j;
-            prog = check_box_line(box[i], row[row_index], i, "row", row_index) || prog;
-            prog = check_box_line(box[i], col[col_index], i, "col", col_index) || prog;
+            prog = check_overlapping_units(box[i], row[row_index], "box", i, "row", row_index, "Box-Line") || prog;
+            prog = check_overlapping_units(box[i], col[col_index], "box", i, "col", col_index, "Box-Line") || prog;
         }
     }
 
     return prog;
 }
 
-// Pointing line can just use the same function but with box adn line switched - DOUBLE CHECK
+int pointing_line() {
+    int prog = 0;
+    int row_index, col_index;
+
+    for (int i = 0; i < 9; i++) {
+        /* Rows for box 'i' */
+        for (int j = 0; j < 3; j++) {
+            row_index = i / 3 * 3 + j;
+            col_index = i % 3 * 3 + j;
+            prog = check_overlapping_units(row[row_index], box[i], "row", row_index, "box", i, "Pointing Line") || prog;
+            prog = check_overlapping_units(col[col_index], box[i], "col", col_index, "box", i, "Pointing Line") || prog;
+        }
+    }
+
+    return prog;
+}
 
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 

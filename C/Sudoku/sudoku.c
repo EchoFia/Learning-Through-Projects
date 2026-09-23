@@ -2,105 +2,13 @@
 #include <stdlib.h>
 #include "maths.h"
 #include "strats.h"
+#include "grid.h"
 
 /* Declare global variables */
 int grid[9][9][11];
 int row[9][9][2];
 int col[9][9][2];
 int box[9][9][2];
-
-/* Generating the sudoku */
-
-// NOTE: Later on, will actually generate sudokus, for now will just import one
-
-/* Inputs the starting digits and calculates all the initial candidates */
-void init_grid(int array[9][9]) {
-    for (int i = 0; i < 9; i++) {
-        for (int j = 0; j < 9; j++) {
-            int x = array[i][j];
-
-            for (int k = 1; k < 11; k++) {
-                grid[i][j][k] = 0;
-            }
-
-            if (x != 0) {
-                grid[i][j][0] = 1;
-                grid[i][j][x] = 1;
-                grid[i][j][10] = x;
-            } else {
-                grid[i][j][0] = 9;
-                for (int k = 1; k < 10; k++) {
-                    grid[i][j][k] = 1;
-                }
-            }
-        }
-    }
-
-    /* Initialises row, col and box */
-    for (int k = 0; k < 9; k++) {
-        for (int j = 0; j < 9; j++) {
-            row[k][j][0] = k;
-            row[k][j][1] = j;
-            col[j][k][0] = k;
-            col[j][k][1] = j;
-            box[calc_box(k, j)][calc_box_index(k, j)][0] = k;
-            box[calc_box(k, j)][calc_box_index(k, j)][1] = j;
-        }
-    }
-
-    /* Cleans up each of the starting digits */
-    for (int i = 0; i < 9; i++) {
-        for (int j = 0; j < 9; j++) {
-            if (grid[i][j][0] == 1) {
-                new_solved_digit(i, j);
-            }
-        }
-    }
-}
-
-/* Printing Functions */
-
-/* Prints the grid in a readable format, a grid of 3x3 boxes */
-/* If 'flag_num_cands' is TRUE (1), will print the number of candidates instead of the solved digits */
-void print_grid(int flag_num_cands) {
-    printf("----------------------\n");
-    for (int i = 0; i < 9; i++) {
-
-        if (i % 3 == 0 && i != 0) {
-            printf("-------+------+-------\n");
-        }
-
-        for (int j = 0; j < 9; j++) {
-            
-            if (j % 3 == 0) {
-                printf("|");
-            }
-
-            if (!flag_num_cands) {
-                if (grid[i][j][10]) {
-                    for (int k = 1; k < 10; k++) {
-                        if (grid[i][j][k]) { printf("%i ", k); }
-                    }
-                } else {
-                    printf(". ");
-                }
-            } else {
-                printf("%i ", grid[i][j][0]);
-            }
-            
-        }
-        printf("|\n");
-    }
-    printf("----------------------\n");
-}
-
-/* Prints the candidates for a cell */
-void print_possibilities(int r, int c) {
-    printf("\nPossibilities are: ");
-    for (int i = 1; i < 10; i++) {
-        if (grid[r][c][i]) { printf("%i, ", i); }
-    }
-}
 
 /* Main */
 
@@ -119,10 +27,6 @@ int main() {
     //     {0, 5, 0,   0, 0, 6,   0, 0, 0},
     //     {6, 0, 0,   0, 2, 8,   0, 7, 9},
     //     {0, 0, 0,   1, 0, 0,   8, 6, 0},
-
-    //     // {0, 0, 0,   0, 0, 0,   0, 4, 0},
-    //     // {1, 0, 0,   0, 0, 8,   0, 7, 9},
-    //     // {0, 0, 0,   1, 0, 0,   8, 3, 0},
     // };
 
     /* Harder One */
@@ -140,33 +44,47 @@ int main() {
         {0, 9, 5,   0, 0, 6,   4, 0, 0},
     };
 
+    /* Hardest one */
+    // int array[9][9] = {
+    //     {8, 0, 0,   0, 0, 0,   0, 0, 0},
+    //     {0, 0, 3,   6, 0, 0,   0, 0, 0},
+    //     {0, 7, 0,   0, 9, 0,   2, 0, 0},
+
+    //     {0, 5, 0,   0, 0, 7,   0, 0, 0},
+    //     {0, 0, 0,   0, 4, 5,   7, 0, 0},
+    //     {0, 0, 0,   1, 0, 0,   0, 3, 0},
+
+    //     {0, 0, 1,   0, 0, 0,   0, 6, 8},
+    //     {0, 0, 8,   5, 0, 0,   0, 1, 0},
+    //     {0, 9, 0,   0, 0, 0,   4, 0, 0},
+    // };
+
     init_grid(array);
 
     ///// OOh, have a flag for each strategy, like an index, and then have the solver function have a queue of which strategies to do next, and each strategy can add things that might work after it, as well as a general one that adds just one of each
 
-    print_grid(0);
-
     /* A flag to know if any progress is being made */
     int prog = 1;
-    while (prog) { 
-        prog = naked_single();
+    while (prog && !check_finished()) { 
+        print_grid(0);
+        prog = 0;
+        prog = naked_single() || prog;
         prog = unique_cand() || prog;
         prog = naked_pair() || prog;
         prog = hidden_pair() || prog;
         prog = box_line() || prog;
+        prog = pointing_line() || prog;
         prog = naked_triple() || prog;
         prog = naked_quadruple() || prog;
         prog = hidden_triple() || prog;
-        print_grid(0);
     }
 
-    // check_box_line(box[2], col[7], 2, "col", 7);
-    // box_line();
-    // naked_pair();
-    // hidden_triple();
-    // unique_cand();
-
-    // print_grid(0);
+    if (check_finished()) {
+        print_grid(0);
+        printf("The sudoku is solved! :)\n");
+    } else {
+        printf("The solver is stuck! :(\n");
+    }
 
     return 0;
 
