@@ -197,10 +197,6 @@ int x_solved_unit(int x, int unit[9][2]) {
     return count;
 }
 
-/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
-
-/* Misc */
-
 /* Find which cells in a unit have 'x' as a candidate */
 /* NOTE: Remember to free(indices) after use */
 int* find_x_cand_unit(int unit[9][2], int x) {
@@ -208,7 +204,7 @@ int* find_x_cand_unit(int unit[9][2], int x) {
     int* indices = malloc(count * sizeof(int));
     int m, n;
 
-    for (int i = 1; i < 10; i++) {
+    for (int i = 0; i < 9; i++) {
         m = unit[i][0];
         n = unit[i][1];
         if (grid[m][n][x]) {
@@ -221,14 +217,15 @@ int* find_x_cand_unit(int unit[9][2], int x) {
     return indices;
 }
 
-// STRUGGLES WITH POINTERS, WILL HAVE TO SAVE SOMEWHERE ELSE!!! WILL JUST SAVE AS 2 HARD CODED FOR NOW
-int compare_arrays(int* a, int* b) {
-    // WORKS BECAUSE a AND b ARE BOTH int TYPE
-    if (sizeof(*a) != sizeof(*b)) {
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* Misc */
+
+int compare_arrays(int* a, int* b, int len_a, int len_b) {
+    if (len_a != len_b) {
         return 0;
     } else {
-        // for (int i = 0; i < (sizeof(*a) / sizeof(int)); i++) {
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < len_a; i++) {
             if (a[i] != b[i]) { return 0; }
         }
         return 1;
@@ -331,6 +328,7 @@ int unique_cand() {
 /* NOTE: Can only find one naked set each time it's passed */
 int check_naked_set(int z, int unit[9][2], char* type, int index) {
 
+    /* Check that 'z' is in range */
     if ((z < 1) || (z > 4)) {
         printf("Error: z out of range\n");
         return 0;
@@ -354,9 +352,7 @@ int check_naked_set(int z, int unit[9][2], char* type, int index) {
     }
 
     /* If there's less than 'z' cells with 'z' candidates, there's no chance for a naked set of size 'z' */
-    if (count < z) {
-        ; // MAYBE CHANGE TO PROG????!!!!! FIX - MAKE SURE TO free(z_cands)
-    } else {
+    if (count >= z) {
 
         /* Need to have 'z' matching cells with exactly the same candidates */
         for (int i = 0; i < count; i++) {
@@ -430,6 +426,108 @@ int naked_set(int z) {
     return prog;
 }
 
+int check_hidden_set(int z, int unit[9][2], char* type, int index) {
+
+    /* Check that 'z' is in range */
+    if ((z < 1) || (z > 3)) {
+        printf("Error: z out of range\n");
+        return 0;
+    }
+
+    /* Flag to track if anything in the grid has been updated */
+    int prog = 0;
+
+    int count = 0;
+
+    /* Check what digits only appear 'z' times in the unit */
+    int* digits = malloc(count * sizeof(int));
+
+    for (int i = 1; i < 10; i++) {
+        if (x_freq_unit(i, unit) == z) {
+            count++;
+            digits = realloc(digits, count * sizeof(int));
+            digits[count - 1] = i;
+        }
+    }
+
+    if (count >= z) {
+
+        /* Need to have 'z' digits only present in the same 'z' cells */
+        for (int i = 0; i < count; i++) {
+
+            int num_matching = 1;
+            
+            /* Will store the digits that match in where their candidates are in 'unit' */
+            int* matching = malloc(num_matching * sizeof(int));
+            matching[0] = digits[i];
+
+            /* Find which indcies relative to 'unit' have 'digits[i] */
+            int* inds_i = find_x_cand_unit(unit, digits[i]);
+
+            /* Can end loop early if there's already enough cells that match */
+            for (int j = 0; j < i && num_matching < z; j++) {
+
+                /* Find which indcies relative to 'unit' have 'digits[i] */
+                int* inds_j = find_x_cand_unit(unit, digits[j]);
+                
+                if (compare_arrays(inds_i, inds_j, z, z)) {
+                    num_matching++;
+                    matching = realloc(matching, num_matching * sizeof(int));
+                    matching[num_matching - 1] = digits[j];
+                }
+
+                free(inds_j);
+
+            }
+
+            if (num_matching >= z) {
+
+                /* Convert the 'unit' indices in 'inds_i' to a coords struct */
+                coords cells = init_coords();
+                for (int j = 0; j < z; j++) {
+                    cells = add_coord(cells, unit[inds_i[j]]);
+                }
+
+                /* Remove all other digits than those in 'matching' */
+                for (int x = 1; x < 10; x++) {
+                    if (!int_in_array(x, matching, z)) {
+                        prog = prog || (x_freq_block(x, cells) > 0);
+                        x_remove_block(x, cells);
+                    }
+                }
+
+                /* If any candidates were actually removed */
+                if (prog) {
+                    char* terms[2] = {"Pair", "Triple"};
+                    printf("Hidden %s: found in %s %i\n", terms[z-2], type, index); // ADD MORE DETAILS LATER !!!!!
+                }
+
+                del_coords(cells);
+            }
+
+            free(matching);
+            free(inds_i);
+
+        }
+
+    }
+
+    free(digits);
+    return prog;
+}
+
+int hidden_set(int z) {
+    int prog = 0;
+
+    for (int i = 0; i < 9; i++) {
+        prog = check_hidden_set(z, row[i], "row", i) || prog;
+        prog = check_hidden_set(z, col[i], "col", i) || prog;
+        prog = check_hidden_set(z, box[i], "box", i) || prog;
+    }
+
+    return prog;
+}
+
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
 /* Level 1 Strategies */
@@ -439,72 +537,8 @@ int naked_pair() {
     return prog;
 }
 
-int check_hidden_pair(int unit[9][2], char* type, int index) {
-
-    int prog = 0;
-    
-    /* Check what digits only appear twice in the unit */
-    int count = 0;
-    int* digits = malloc(count * sizeof(int));
-
-    for (int i = 1; i < 10; i++) {
-        if (x_freq_unit(i, unit) == 2) {
-            count++;
-            digits = realloc(digits, count * sizeof(int));
-            digits[count - 1] = i;
-        }
-    }
-
-    // CAN TIDY UP AND MAKE QUICKER BY FINDING ALL AT START
-    for (int i = 0; i < count; i++) {
-        for (int j = 0; j < i; j++) {
-            int* indsI = find_x_cand_unit(unit, digits[i]);
-            int* indsJ = find_x_cand_unit(unit, digits[j]);
-
-            if (compare_arrays(indsI, indsJ)) {
-                // printf("For i: (%i, %i)\n", indsI[0], indsI[1]);
-                // printf("For j: (%i, %i)\n", indsJ[0], indsJ[1]);
-
-
-                // CAN FUNCTIONALISE IN THE FUTURE, JUST GONNA PUT THE CLEAN UP HERE
-                for (int x = 0; x < 9; x++) {
-                    int m = unit[x][0];
-                    int n = unit[x][1];
-                    if (grid[m][n][digits[i]]) {
-                        prog = prog || (grid[m][n][0] > 2);
-                        /* Set all other candidates to 0 */
-                        for (int y = 1; y < 10; y++) { 
-                            grid[m][n][y] = 0;
-                        }
-                        grid[m][n][digits[i]] = 1;
-                        grid[m][n][digits[j]] = 1;
-                        grid[m][n][0] = 2;
-                    }
-                }
-
-                // Problem of what if no prog? With naked pair, will keep triggering each other
-                // Do i need another flag?
-                printf("Hidden Pair: Digits %i and %i in %s %i\n", digits[i], digits[j], type, index);
-            }
-
-
-            free(indsI);
-            free(indsJ);
-        }
-    }
-
-    return prog;
-}
-
 int hidden_pair() {
-    int prog = 0;
-
-    for (int i = 0; i < 9; i++) {
-        prog = check_hidden_pair(row[i], "row", i) || prog;
-        prog = check_hidden_pair(col[i], "col", i) || prog;
-        prog = check_hidden_pair(box[i], "box", i) || prog;
-    }
-
+    int prog = hidden_set(2);
     return prog;
 }
 
@@ -561,7 +595,7 @@ int check_box_line(int unit_box[9][2], int unit_line[9][2], int box_index, char*
             /* Only if there are no 'x' candidates on the line outside the box */
             if (x_freq_block(x, line_not_box) == 0 && x_freq_block(x, box_not_line) > 0) {
 
-                printf("%i", x_freq_block(x, box_not_line));
+                // printf("%i", x_freq_block(x, box_not_line));
 
                 // int ran_var = x_freq_block(x, box_not_line);
                 printf("Box-Line: Digit %i must be in %s %i in box %i\n", x, line_type, line_index, box_index);
@@ -613,5 +647,10 @@ int naked_triple() {
 
 int naked_quadruple() {
     int prog = naked_set(4);
+    return prog;
+}
+
+int hidden_triple() {
+    int prog = hidden_set(3);
     return prog;
 }

@@ -19,10 +19,10 @@ int x_freq_block(int x, coords cells);
 int x_freq_unit(int x, int unit[9][2]);
 int x_solved_block(int x, coords cells);
 int x_solved_unit(int x, int unit[9][2]);
+int* find_x_cand_unit(int unit[9][2], int x);
 
 /* Misc - REORGANISE */
-int* find_x_cand_unit(int unit[9][2], int x); ////// NOT DONE!!!!!!!
-int compare_arrays(int* a, int* b); //// NOTE DONE!!!!!!!
+int compare_arrays(int* a, int* b, int len_a, int len_b);
 int int_in_array(int x, int* arr, int length);
 
 /* Level 0 Strategies */
@@ -33,14 +33,17 @@ int unique_cand();
 /* Generalised Functions for Level 1 & 2 Strategies */
 int check_naked_set(int z, int unit[9][2], char* type, int index);
 int naked_set(int z);
+int check_hidden_set(int z, int unit[9][2], char* type, int index);
+int hidden_set(int z);
 
 /* Level 1 Strategies */
 int naked_pair();
-int check_hidden_pair(int unit[9][2], char* type, int index); //// REWRITE INTO GENERALISED !!!!
 int hidden_pair();
+int new_hidden_pair();
 int check_box_line(int unit_box[9][2], int unit_line[9][2], int box_index, char* line_type, int line_index);
 int box_line();
 
 /* Level 2 Strategies */
 int naked_triple();
 int naked_quadruple();
+int hidden_triple();
