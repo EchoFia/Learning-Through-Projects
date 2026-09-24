@@ -77,12 +77,16 @@ int main() {
         prog = naked_triple() || prog;
         prog = naked_quadruple() || prog;
         prog = hidden_triple() || prog;
+        prog = x_wing() || prog;
+        prog = lines_3() || prog;
+        prog = lines_4() || prog;
     }
 
     if (check_finished()) {
         print_grid(0);
         printf("The sudoku is solved! :)\n");
     } else {
+        print_grid(1);
         printf("The solver is stuck! :(\n");
     }
 

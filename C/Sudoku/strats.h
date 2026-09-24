@@ -26,7 +26,7 @@ int x_freq_block(int x, coords cells);
 int x_freq_unit(int x, int unit[9][2]);
 int x_solved_block(int x, coords cells);
 int x_solved_unit(int x, int unit[9][2]);
-int* find_x_cand_unit(int unit[9][2], int x);
+int* find_x_cand_unit(int unit[9][2], int x); // CHANGE ORDER
 
 /* Misc - REORGANISE */
 int compare_arrays(int* a, int* b, int len_a, int len_b);
@@ -53,7 +53,15 @@ int check_overlapping_units(int unit_a[9][2], int unit_b[9][2], char* a_type, in
 int box_line();
 int pointing_line();
 
+/* Generalised Functions for Level 2 & 3 Strategies */
+int check_lines_z(int z, char* type, char* strat_name);
+
 /* Level 2 Strategies */
 int naked_triple();
 int naked_quadruple();
 int hidden_triple();
+int x_wing();
+
+/* Level 3 Strategies */
+int lines_3();
+int lines_4();
