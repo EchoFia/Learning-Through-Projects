@@ -656,6 +656,120 @@ int pointing_line() {
 
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
+/* Generalised Functions for Level 2 & 3 Strategies */
+
+int check_lines_z(int z, char* type, char* strat_name) {
+
+    int (*unit_a)[2];
+    int (*unit_b)[2];
+
+    if (!(strcmp(type, "row") == 0 || strcmp(type, "col") == 0)) {
+        printf("Error: Incorrect type entered\n");
+        return 0;
+    }
+
+    int prog = 0;
+
+    for (int x = 1; x < 10; x++) {
+
+        // JUST FOR COLUMNS FOR NOW
+        for (int i = 0; i < 9; i++) {
+
+            /* Equivalent to setting 'unit_a' to 'col[i]' OR 'row[i]' */
+            if (strcmp(type, "row") == 0) {
+                unit_a = row[i];
+            } else {
+                unit_a = col[i];
+            }
+
+            /* If there's more than 'z' candidates for 'x' in 'unit', can't be a Lines-Z */
+            if (x_freq_unit(x, unit_a) > z) { continue; }
+
+            int num_matching = 1;
+            int* matching = malloc(num_matching * sizeof(int));
+            matching[num_matching - 1] = i;
+
+            
+            int* inds_i = find_x_cand_unit(unit_a, x);
+
+            for (int j = 0; j < i && num_matching < z; j++) {
+
+                /* Equivalent to setting 'unit_b' to 'col[j]' OR 'row[j]' */
+                if (strcmp(type, "row") == 0) {
+                    unit_b = row[j];
+                } else {
+                    unit_b = col[j];
+                }
+
+                if (x_freq_unit(x, unit_b) > z) { continue; }
+
+                int* inds_j = find_x_cand_unit(unit_b, x);
+
+                if (compare_arrays(inds_i, inds_j, z, z)) {
+                    num_matching++;
+                    matching = realloc(matching, num_matching * sizeof(int));
+                    matching[num_matching - 1] = j;
+                }
+
+                if (num_matching >= z) {
+
+                    /* Convert the 'unit' indices in 'inds_i' to a coords struct */
+                    coords cells = init_coords();
+
+                    /* 'inds_i' will be the list of rows/cols (opposite to 'type') to remove from */
+                    for (int k = 0; k < z; k++) {
+
+                        for (int l = 0; l < 9; l++) {
+
+                            /* If not in matching */
+                            if (!int_in_array(l, matching, z)) {
+
+                                int rc[2];
+                                if (strcmp(type, "row") == 0) {
+                                    rc[0] = l;
+                                    rc[1] = inds_i[k];
+                                } else {
+                                    rc[0] = inds_i[k];
+                                    rc[1] = l;
+                                }
+
+                                cells = add_coord(cells, rc);
+                            }
+                        }
+                    }
+
+                    // print_grid_coords(cells);
+
+                    /* Remove 'x' from all 'cells' */
+                    prog = prog || (x_freq_block(x, cells) > 0);
+                    x_remove_block(x, cells);
+
+                    /* If any candidates were actually removed */
+                    if (prog) {
+                        // CHANGE - HARD CODED FOR Z = 2!!!!! Need a function probs to just make a nice string
+                        printf("Found %s for digit %i between %s %i and %s %i\n", strat_name, x, type, i, type, j);
+                    }
+
+                    del_coords(cells);
+
+                }
+
+                free(inds_j);
+
+            }
+
+            free(inds_i);
+            free(matching);
+
+        }
+
+    }
+
+    return prog;
+}
+
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
 /* Level 2 Strategies */
 
 int naked_triple() {
@@ -671,4 +785,26 @@ int naked_quadruple() {
 int hidden_triple() {
     int prog = hidden_set(3);
     return prog;
+}
+
+int x_wing() {
+    int prog = check_lines_z(2, "row", "X-Wing");
+    prog = check_lines_z(2, "col", "X-Wing") || prog;
+    return prog;
+}
+
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* Level 3 Strategies */
+
+int lines_3() {
+    int prog = check_lines_z(3, "row", "Lines-3");
+    prog = check_lines_z(3, "col", "Lines-3") || prog;
+    return prog;
+}
+
+int lines_4() {
+    int prog = check_lines_z(4, "row", "Lines-4");
+    prog = check_lines_z(4, "col", "Lines-4") || prog;
+    return prog; 
 }
