@@ -12,6 +12,10 @@ extern int row[9][9][2];
 extern int col[9][9][2];
 extern int box[9][9][2];
 
+/* Declaring Global Variables for XY-Wing */
+int grid_2_cands[9][9];
+chain curr_chain;
+
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
 /* Co-ords Handling */
@@ -47,6 +51,20 @@ void del_coords(coords cells) {
     free(cells.arr);
 }
 
+/* Removes the last entry from a 'coords' struct */
+coords remove_last_coord(coords cells) { 
+    cells.count--;
+
+    cells.arr = realloc(cells.arr, cells.count * sizeof(int*));
+
+    cells.arr[0] = realloc(cells.arr[0], cells.count * 2 * sizeof(int));
+    for(int i = 1; i < cells.count; i++) {
+        cells.arr[i] = cells.arr[0] + i * 2; // 2 because coords have dim 2
+    }
+
+    return cells;
+}
+
 /* Creates a 'cords' struct for a unit */
 coords unit_to_coords(int unit[9][2]) {
     coords cells = init_coords();
@@ -54,6 +72,84 @@ coords unit_to_coords(int unit[9][2]) {
         cells = add_coord(cells, unit[i]);
     }
     return cells;
+}
+
+/* Function to make a 'coords' struct that contains all cells in the same units as 'rc[2]' */
+// CAN CLEAN UP, PERHAPS? NOT TOO OPTIMISED
+coords get_touching_block(int rc[2]) {
+    int row_num = rc[0];
+    int col_num = rc[1];
+    int box_num = calc_box(row_num, col_num);
+    int box_index = calc_box_index(row_num, col_num);
+
+    coords touching_cells = init_coords();
+
+    /* */
+    for (int i = 0; i < 9; i++) {
+        /* Add all the coords in the row, not the actual cell though */
+        if (!coord_in_array(row[row_num][i], touching_cells) && i != col_num) {
+            touching_cells = add_coord(touching_cells, row[row_num][i]);
+        }
+
+        /* Add all the coords in the col, not the actual cell though */
+        if (!coord_in_array(col[col_num][i], touching_cells) && i != row_num) {
+            touching_cells = add_coord(touching_cells, col[col_num][i]);
+        }
+
+        /* Add all the coords in the box, not the actual cell though */
+        if (!coord_in_array(box[box_num][i], touching_cells) && i != box_index) {
+            touching_cells = add_coord(touching_cells, box[box_num][i]);
+        }
+    }
+
+    return touching_cells;
+}
+
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* Chain Handling */
+
+/* Creates a 'chain' struct, starting from a given 'rc[2]' cell */
+/* NOTE: As the starting cell has 2 possible starting digits, shall loop through starting with each one */
+/* 'digit_index' will be 0 or 1, and will indicate which digit starts */
+chain init_chain(int rc[2], int digit_index) {
+    chain curr_chain;
+    curr_chain.chain_len = 0;
+
+    curr_chain.cells = init_coords();
+
+    curr_chain.digits = malloc((curr_chain.chain_len + 1) * sizeof(int));
+    int* cands = get_cands(rc[0], rc[1]);
+    curr_chain.digits[0] = cands[digit_index];
+    free(cands);
+
+    return curr_chain;
+}
+
+/* Adds a new link to the chain */
+chain add_chain(chain curr_chain, int rc[2], int digit) {
+    curr_chain.chain_len++;
+    curr_chain.cells = add_coord(curr_chain.cells, rc);
+
+    curr_chain.digits = realloc(curr_chain.digits, (curr_chain.chain_len + 1) * sizeof(int));
+    curr_chain.digits[curr_chain.chain_len] = digit;
+
+    return curr_chain;
+}
+
+/* Cleans up 'chain' struct */
+void del_chain(chain curr_chain) {
+    free(curr_chain.digits);
+    del_coords(curr_chain.cells);
+}
+
+/* Removes the last entry from a 'chain' struct */
+chain remove_child(chain curr_chain) {
+    curr_chain.chain_len--;
+    curr_chain.cells = remove_last_coord(curr_chain.cells);
+    curr_chain.digits = realloc(curr_chain.digits, (curr_chain.chain_len + 1) * sizeof(int));
+
+    return curr_chain;
 }
 
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
@@ -347,8 +443,11 @@ int check_naked_set(int z, int unit[9][2], char* type, int index) {
     int* z_cands = malloc(count * sizeof(int)); // Evaluates to 0 but helps with readability
 
     /* Find all cells with explicitly 'z' candidates */
+    // CORRECTION: 'z' or less, just not 1 !!!!!!! 
     for (int i = 0; i < 9; i++) {
-        if (grid[unit[i][0]][unit[i][1]][0] == z) {
+        /* This if statement doesn't matter, cause later on 'comp_cands doesn't work for this */
+        /// NEEDS FIXING!!!!!
+        if (grid[unit[i][0]][unit[i][1]][0] <= z && grid[unit[i][0]][unit[i][1]][0] != 1) {
             count++;
             z_cands = realloc(z_cands, count * sizeof(int));
             z_cands[count - 1] = i;
@@ -559,6 +658,16 @@ coords non_overlap_blocks(coords cells_a, coords cells_b) {
     }
 
     return cells_a_not_b;
+}
+
+////// CHANGE THIS TO BE BETTER!!!
+coords overlap_blocks(coords cells_a, coords cells_b) {
+
+    coords cells_a_not_b = non_overlap_blocks(cells_a,  cells_b);
+    coords cells_a_and_b = non_overlap_blocks(cells_a, cells_a_not_b);
+
+    del_coords(cells_a_not_b);
+    return cells_a_and_b;
 }
 
 
@@ -793,6 +902,8 @@ int x_wing() {
     return prog;
 }
 
+/* NOTE: Y-Wing is naturally included in XY-Chain */
+
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
 /* Level 3 Strategies */
@@ -807,4 +918,184 @@ int lines_4() {
     int prog = check_lines_z(4, "row", "Lines-4");
     prog = check_lines_z(4, "col", "Lines-4") || prog;
     return prog; 
+}
+
+/* Prints out the XY-Chain */
+void print_xy_chain(chain curr_chain, int x, int start) {
+    
+    printf("XY-Chain: %i removed due to chain:\n", x);
+
+    printf("  Co-ords: ");
+    for (int i = start; i < curr_chain.chain_len; i++) {
+        printf("(%i, %i)", curr_chain.cells.arr[i][0], curr_chain.cells.arr[i][1]);
+        if (i != curr_chain.chain_len - 1) {
+            printf(" > ");
+        }
+    }
+    printf("\n");
+
+    printf("  Cands: ");
+    for (int i = start; i < curr_chain.chain_len; i++) {
+        printf("(%i, %i)", curr_chain.digits[i], curr_chain.digits[i+1]);
+        if (i != curr_chain.chain_len - 1) {
+            printf(" > ");
+        }
+    }
+    printf("\n");
+
+    print_grid(0);
+}
+
+/* Finds all potential new links for the chain to go to */
+coords find_children_block (chain curr_chain, int rc[2]) {
+
+    int coord[2];
+
+    /* Finds all cells that are directly connected, or 'touch', the last link in the chain */
+    coords touching_cells = get_touching_block(rc);
+
+    /* Now need to narrow down which cells of those can be added to the chain */
+    coords children_cells = init_coords();
+
+    for (int i = 0; i < touching_cells.count; i++) {
+        coord[0] = touching_cells.arr[i][0];
+        coord[1] = touching_cells.arr[i][1];
+
+        /* The new link must have only 2 candidates, and not already be in the current chain */
+        if (grid_2_cands[coord[0]][coord[1]] && !coord_in_array(coord, curr_chain.cells)) {
+
+            /* Check to see if the new cell has candidates that match with the end of the current chain */
+            int* cands = get_cands(coord[0], coord[1]);
+            if (int_in_array(curr_chain.digits[curr_chain.chain_len], cands, 2)) {
+                children_cells = add_coord(children_cells, coord);
+            }
+
+            free(cands);
+        }
+    }
+
+    del_coords(touching_cells);
+    
+    return children_cells;
+}
+
+
+
+/* Will add the new cell, check if any chains link back (form an XY-Wing), then find all potential next links */
+/* This function will then call itself with each of those children links, and check each branch of the possible chain */
+int check_chain(int new_cell[2]) { 
+
+    int m, n;
+    int prog = 0;
+
+    /* Figure out wahat the new digit is */
+    int* cands = get_cands(new_cell[0], new_cell[1]);
+    int new_digit;
+    if (curr_chain.digits[curr_chain.chain_len] == cands[0]) { 
+        new_digit = cands[1];
+    } else if (curr_chain.digits[curr_chain.chain_len] == cands[1]) {
+        new_digit = cands[0];
+    } else {
+        free(cands);
+        printf("Error: check_chain gone wrong\n"); //ADD MORE LATER!!!!
+        return 0;
+    }
+    free(cands);
+
+    curr_chain = add_chain(curr_chain, new_cell, new_digit);
+
+    // THE -1 IS WEIRD AND DOESN'T MATTER, CAN'T POSSIBLY BE IT'S OTHER DIGIT, SO ITS FINE
+    /* Check to see if any XY-Wings have formed */
+    /* NOTE: No need to compare to the last 2 digits, hence the '- 1' */
+
+    // NOTE: Can maybe just compare to the initial digit, as this is causing repeating checks in this system??!!!
+    for (int i = 0; i < curr_chain.chain_len - 1; i++) {
+        if (new_digit == curr_chain.digits[i]) {
+
+            /* Find the cells that share units with both ends of the XY-Chain */
+            coords touching_block_a = get_touching_block(curr_chain.cells.arr[i]);
+            coords touching_block_b = get_touching_block(curr_chain.cells.arr[curr_chain.chain_len - 1]);
+            coords overlap = overlap_blocks(touching_block_a, touching_block_b);
+
+            // print_grid_coords(overlap);
+
+            /* Remove that digit's candidates from those cells */
+            int internal_prog = 0;
+            for (int j = 0; j < overlap.count; j++) {
+                if (!coord_in_array(overlap.arr[j], curr_chain.cells)) {
+                    m = overlap.arr[j][0];
+                    n = overlap.arr[j][1];
+                    internal_prog = internal_prog || grid[m][n][new_digit];
+                    x_remove_single(new_digit, m, n);
+                }
+            }
+
+            if (internal_prog) {
+                print_xy_chain(curr_chain, new_digit, i); /// MAYBE PRINT OUT WHAT DIGITS WERE REMOVED FROM WHERE?!!!!
+            }
+
+            prog = prog || internal_prog;
+
+            /* Clean up */
+            del_coords(touching_block_a);
+            del_coords(touching_block_b);
+            del_coords(overlap);
+
+        }
+    }
+
+    /* Find all possible children */
+    coords children_cells = find_children_block(curr_chain, new_cell);
+    
+    /* Loop through all children, and iterate them back into this function */
+    for (int i = 0; i < children_cells.count; i++) {
+        check_chain(children_cells.arr[i]);
+
+        /* Removes the added child link, so can explore the next */
+        curr_chain = remove_child(curr_chain);
+    }
+
+    del_coords(children_cells);
+
+    return prog; 
+}
+
+// NOTE: Can potentially change this to an explicit tree structure and try different algorithms?
+// NOTE: Currently finds each chain multiple times, how can we avoid that?
+int xy_chain() {
+
+    int prog = 0;
+
+    /* Need to find all cells that have exactly 2 candidates */
+    for (int i = 0; i < 9; i++) { 
+        for (int j = 0; j < 9; j++) {
+            grid_2_cands[i][j] = (grid[i][j][0] == 2);
+            // printf("%i ", grid_2_cands[i][j]);
+        }
+        // printf("\n");
+    }
+
+    /* Loop through each cell with 2 candidates as the start of the chain */
+    for (int i = 0; i < 9; i++) { 
+        for (int j = 0; j < 9; j++) {
+            if (grid_2_cands[i][j]) { 
+
+                int coord[2] = {i, j};
+
+                /* Starting cell has 2 candidates, each of which can start their own chain */
+                for (int k = 0; k < 2; k++) {
+                    curr_chain = init_chain(coord, k);
+
+                    /* Starts the iterative loop to search for the next chain link */
+                    prog = check_chain(coord) || prog;
+
+                    del_chain(curr_chain);
+
+                }
+            }
+        }
+    }
+
+    return prog;
+
 }
