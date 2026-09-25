@@ -75,8 +75,6 @@ int main() {
 
     init_grid(array);
 
-    print_grid(0);
-
     ///// OOh, have a flag for each strategy, like an index, and then have the solver function have a queue of which strategies to do next, and each strategy can add things that might work after it, as well as a general one that adds just one of each
 
     /* A flag to know if any progress is being made */
@@ -97,15 +95,18 @@ int main() {
         prog = lines_3() || prog;
         prog = lines_4() || prog;
         prog = xy_chain() || prog;
+        prog = rectangles() || prog;
     }
 
-    naked_pair();
-    naked_triple();
-    naked_quadruple();
+    // naked_pair();
+    // naked_triple();
+    // naked_quadruple();
 
-    print_grid(0);
+    print_grid(1);
 
-    xy_chain();
+    rectangles();
+
+    // xy_chain();
 
     ///// BEFORE DOING Y-WING OR XY-CHAIN, SHOULD ALWAYS DO THE NAKED SETS (SPECFICALLY PAIRS) AND HIDDEN SETS, AS THEY MIGHT GET SPOTTED BY XY-CHAIN BUT ARE EASIER TO DO WITH NAKED SET
 

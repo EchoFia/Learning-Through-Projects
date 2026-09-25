@@ -1099,3 +1099,133 @@ int xy_chain() {
     return prog;
 
 }
+
+/* Finds the coords of any potential corners of a rectangle */
+coords find_corner(int x, coords cells, int box_num) {
+
+    int m, n, a, b;
+
+    /* A flag to keep track if a cell can be a corner */
+    int flag;
+
+    /* No need to check if the cell is solved */
+    if (x_solved_unit(x, box[box_num])) {
+        return cells;
+    }
+
+    /* Check each cell of the box to see if it can be a corner */
+    for (int i = 0; i < 9; i++) {
+        m = box[box_num][i][0];
+        n = box[box_num][i][1];
+        flag = 1;
+
+        /* Compare against each other cell with 'x' as a candidate, should be within the same row or col */
+        for (int j = 0; j < 9 && flag; j++) {
+            a = box[box_num][j][0];
+            b = box[box_num][j][1];
+            if (grid[a][b][x] && !(m == box[box_num][j][0] || n == box[box_num][j][1])) { flag = 0; }
+        }
+
+        if (flag) {
+            int coord[2] = {m, n};
+            cells = add_coord(cells, coord);
+        }
+    }
+
+    return cells;
+
+}
+
+/* Finds all potential rectangles from a set of potential corners */
+/* NOTE: All rectangles must have at least 3 true corners, and the fourth corner can then have its candidate removed */
+/* Thus, for a genuine rectangle, it will trigger 4 times, once starting from each corner, and remove the opposite corner's candidate */
+int find_rectangles(int x, coords corner_cells) {
+
+    int prog = 0;
+    int m, n, box_num;
+
+    /* Loop through all potential corners */
+    for (int i = 0; i < corner_cells.count; i++) {
+
+        m = corner_cells.arr[i][0];
+        n = corner_cells.arr[i][1];
+        box_num = calc_box(m, n);
+
+        int count_rows = 0;
+        int* rows = malloc(count_rows * sizeof(int));
+
+        /* Check in the same row for another corner */
+        for (int a = 0; a < 9; a++) {
+            if (box_num != calc_box(m, a)) {
+                int coord[2] = {m, a};
+                if (coord_in_array(coord, corner_cells)) {
+                    count_rows++;
+                    rows = realloc(rows, count_rows * sizeof(int));
+                    rows[count_rows - 1] = a;
+                }
+            }
+        }
+
+        int count_cols = 0;
+        int* cols = malloc(count_cols * sizeof(int));
+
+        /* Check in the same col for another corner */
+        for (int a = 0; a < 9; a++) {
+            if (box_num != calc_box(a, n)) {
+                int coord[2] = {a, n};
+                if (coord_in_array(coord, corner_cells)) {
+                    count_cols++;
+                    cols = realloc(cols, count_cols * sizeof(int));
+                    cols[count_cols - 1] = a;
+                }
+            }
+        }
+
+        /* If a cell is present in both its row and col, loop through all possible combinations */
+        if (count_rows && count_cols) {
+            for (int a = 0; a < count_rows; a++) { 
+                for (int b = 0; b < count_cols; b++) {
+
+                    /* If the opposite corner actually has that candidate to remove */
+                    if (grid[rows[a]][cols[b]][x]) {
+                        /* Remove the opposite corner, hence row & col swapped from their usual place */
+                        x_remove_single(x, cols[b], rows[a]);
+                        printf("Rectangle: Removed %i at (%i, %i), with other corner at (%i, %i)\n", x, cols[b], rows[a], m, n);
+                    }
+                }
+            }
+        }
+
+        free(rows);
+        free(cols);
+
+    }
+
+    return prog;
+
+}
+
+int rectangles() { 
+
+    int prog = 0;
+
+    /* Loops through all digits 1-9 */
+    for (int x = 1; x < 10; x++) {
+
+        coords corner_cells = init_coords();
+
+        /* Finds the corners for that digit */
+        for (int i = 0; i < 9; i++) {
+            corner_cells = find_corner(x, corner_cells, i);
+        }
+
+        /* Finds which of those corners forms a rectangle */
+        prog = find_rectangles(x, corner_cells) || prog;
+        
+        del_coords(corner_cells);
+
+    }
+
+    return prog;
+
+}

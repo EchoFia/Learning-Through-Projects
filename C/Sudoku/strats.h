@@ -100,4 +100,7 @@ void print_xy_chain(chain curr_chain, int x, int start);
 coords find_children_block (chain curr_chain, int rc[2]);
 int check_chain(int new_cell[2]);
 int xy_chain();
+coords find_corner(int x, coords cells, int box_num);
+int find_rectangles(int x, coords corner_cells);
+int rectangles();
 
