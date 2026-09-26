@@ -38,7 +38,7 @@ chain remove_child(chain curr_chain);
 /* Cleaning Up */
 void x_remove_single(int x, int r, int c);
 void x_remove_block(int x, coords cells);
-void x_remove_unit_unsolv(int x, int unit[9][2]);
+void x_remove_unit(int x, int unit[9][2]);
 void new_solved_digit(int r, int c);
 void solve_digit(int x, int r, int c);
 
@@ -50,10 +50,10 @@ int x_freq_block(int x, coords cells);
 int x_freq_unit(int x, int unit[9][2]);
 int x_solved_block(int x, coords cells);
 int x_solved_unit(int x, int unit[9][2]);
-int* find_x_cand_unit(int unit[9][2], int x); // CHANGE ORDER
+int* find_x_cand_unit(int x, int unit[9][2]); // CHANGE ORDER
 
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
-/* Misc - REORGANISE */
+/* Misc Functions */
 int compare_arrays(int* a, int* b, int len_a, int len_b);
 int int_in_array(int x, int* arr, int length);
 int coord_in_array(int rc[2], coords cells);
@@ -66,7 +66,7 @@ int unique_cand();
 
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 /* Generalised Functions for Level 1 & 2 Strategies */
-int check_naked_combos(int z, coords cells_to_check, int unit[9][2], int start, int prog);
+int check_naked_combos(int z, coords cells_to_check, int unit[9][2], int start, int prog, char* type, int index);
 int check_naked_set(int z, int unit[9][2], char* type, int index);
 int naked_set(int z);
 int check_hidden_combos(int z, int unit[9][2], int* digits, int total_digits, int start, int prog, char* type, int index);
