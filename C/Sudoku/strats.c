@@ -12,6 +12,17 @@ extern int row[9][9][2];
 extern int col[9][9][2];
 extern int box[9][9][2];
 
+/* Declaring Global Variables for Naked Sets */
+coords curr_cells;
+int* naked_nums;
+int naked_count;
+
+/* Declaring Global Variables for Hidden Sets */
+int* curr_digits;
+int digits_count;
+/* NOTE: Will reuse 'curr_cells' */
+
+
 /* Declaring Global Variables for XY-Wing */
 int grid_2_cands[9][9];
 chain curr_chain;
@@ -424,6 +435,84 @@ int unique_cand() {
 
 /* Generalised Functions for Level 1 & 2 Strategies */
 
+/* Checks down each combination of 'z' cells to see if they form a Naked Set */
+int check_naked_combos(int z, coords cells_to_check, int unit[9][2], int start, int prog) {
+
+    int m, n;
+
+    /* Loop through all possible cells left */
+    for (int i = start; i < cells_to_check.count; i++) {
+        m = cells_to_check.arr[i][0];
+        n = cells_to_check.arr[i][1];
+
+        curr_cells = add_coord(curr_cells, cells_to_check.arr[i]);
+
+        /* Find the candidates of the newly added cell, and compare to the current digits of the Naked Set */
+        int* cands = get_cands(m, n);
+
+        /* Storing how many new numbers are added so they can easily be removed later */
+        int num_added = 0;
+
+        /* Add any of this cells candidates that aren't in 'naked_nums' to it */
+        for (int j = 0; j < grid[m][n][0]; j++) {
+            if (!int_in_array(cands[j], naked_nums, naked_count)) { 
+                naked_count++;
+                num_added++;
+                naked_nums = realloc(naked_nums, naked_count * sizeof(int));
+                naked_nums[naked_count - 1] = cands[j];
+            }
+        }
+
+        free(cands);
+
+        /* If currently not looking at enough cells, then add iterate again, unless there's already too many distinct candidates */
+        if (curr_cells.count < z && naked_count <= z) {
+            check_naked_combos(z, cells_to_check, unit, i + 1, prog);
+        } 
+        
+        /* If looking at enough cells, check if they form a Naked Set */
+        else if (curr_cells.count == z && naked_count == z) { 
+
+            /* Get the cells that are in the unit but not the Naked Set */
+            coords unit_cells = unit_to_coords(unit);
+            coords unit_not_set = non_overlap_blocks(unit_cells, curr_cells);
+            del_coords(unit_cells);
+
+            /* An internal flag for if the found Naked Set actually leads to removing any candidates */
+            int internal_prog = 0;
+
+            /* Remove each candidate of the Naked Set from the rest of the unit */
+            for (int a = 0; a < z; a++) { 
+                int x = naked_nums[a];
+                internal_prog = internal_prog || (x_freq_block(x, unit_not_set) > 0);
+                x_remove_block(x, unit_not_set);
+            }
+            del_coords(unit_not_set);
+            prog = prog || internal_prog;
+
+            /* Print report if any candidates actually removed */
+            if (internal_prog) {
+                printf("Found Naked %i: Digits ", z); ///// ADD MORE DETAIL!!!!!
+                for (int a = 0; a < z; a++) {
+                    printf("%i", naked_nums[a]);
+                    if (a != z - 1) { printf(", "); }
+                }
+                printf("\n");
+            }
+
+        }
+
+        /* Once done checking this branch, remove everything added so ready to start checking other branches */
+        naked_count -= num_added;
+        naked_nums = realloc(naked_nums, naked_count * sizeof(int));
+        curr_cells = remove_last_coord(curr_cells);
+
+    }
+
+    return prog;
+
+}
+
 /* Checks for a naked set of size 'z', i.e. if 'z' is 2, it'll be a Naked Pair */
 /* NOTE: Can only find one naked set each time it's passed */
 int check_naked_set(int z, int unit[9][2], char* type, int index) {
@@ -437,81 +526,28 @@ int check_naked_set(int z, int unit[9][2], char* type, int index) {
     /* Flag to track if anything in the grid has been updated */
     int prog = 0;
 
-    int count = 0;
+    coords cells_to_check = init_coords();
 
-    /* z_cands will be indices relative to 'unit' */
-    int* z_cands = malloc(count * sizeof(int)); // Evaluates to 0 but helps with readability
-
-    /* Find all cells with explicitly 'z' candidates */
-    // CORRECTION: 'z' or less, just not 1 !!!!!!! 
+    /* Find all cells with 'z' or less candidates that aren't solved */
     for (int i = 0; i < 9; i++) {
-        /* This if statement doesn't matter, cause later on 'comp_cands doesn't work for this */
-        /// NEEDS FIXING!!!!!
         if (grid[unit[i][0]][unit[i][1]][0] <= z && grid[unit[i][0]][unit[i][1]][0] != 1) {
-            count++;
-            z_cands = realloc(z_cands, count * sizeof(int));
-            z_cands[count - 1] = i;
+            cells_to_check = add_coord(cells_to_check, unit[i]);
         }
     }
 
-    /* If there's less than 'z' cells with 'z' candidates, there's no chance for a naked set of size 'z' */
-    if (count >= z) {
+    /* If there's less than 'z' cells with 2 to 'z' candidates, there's no chance for a naked set of size 'z' */
+    if (cells_to_check.count >= z) {
 
-        /* Need to have 'z' matching cells with exactly the same candidates */
-        for (int i = 0; i < count; i++) {
-            int num_matching = 1;
-            
-            /* Will store the indices of all matching cells, indexing relative to 'unit' still */
-            int* matching = malloc(num_matching * sizeof(int));
-            matching[0] = z_cands[i];
+        curr_cells = init_coords();
+        naked_nums = malloc(0);
+        naked_count = 0;
+        prog = check_naked_combos(z, cells_to_check, unit, 0, 0);
 
-            /* Can end loop early if there's already enough cells that match */
-            for (int j = 0; j < i && num_matching < z; j++) {
-                if (comp_cands(unit[z_cands[i]], unit[z_cands[j]])) {
-                    num_matching++;
-                    matching = realloc(matching, num_matching * sizeof(int));
-                    matching[num_matching - 1] = z_cands[j];
-                }
-            }
-
-            /* If enough cells match, we've found a naked set */
-            if (num_matching >= z) {
-
-                int* naked_nums = get_cands(unit[matching[0]][0], unit[matching[0]][1]);
-                /* NOTE: There will be 'z' candidates by definition */
-
-                /* Get cells in the unit but not in the naked set */
-                coords cells = init_coords();
-                for (int j = 0; j < 9; j++) {
-                    if (!int_in_array(j, matching, z)) {
-                        cells = add_coord(cells, unit[j]);
-                    }
-                }
-
-                /* For each number in the naked set, check if there's any candidates to remove */
-                for (int j = 0; j < z; j++) {
-                    int x = naked_nums[j];
-                    prog = prog || (x_freq_block(x, cells) > 0);
-                    x_remove_block(x, cells);
-                }
-
-                // CAN MAYBE HAVE A LIST OF KNOWN NAKED SETS TO NOT ALWAYS BE FINDING IT AGAIN
-
-                /* If any candidates were actually removed */
-                if (prog) {
-                    char* terms[3] = {"Pair", "Triple", "Quadruple"};
-                    printf("Naked %s: found in %s %i\n", terms[z-2], type, index); // ADD MORE DETAILS LATER !!!!!
-                }
-
-                free(naked_nums);
-                del_coords(cells);
-            }
-
-            free(matching);
-        }
     }
 
-    free(z_cands);
+    del_coords(cells_to_check);
+    /* NOTE: No need to free(naked_nums), as will naturally be re-allocated to 0 */
+
     return prog;
 
 }
@@ -528,6 +564,83 @@ int naked_set(int z) {
     return prog;
 }
 
+int check_hidden_combos(int z, int unit[9][2], int* digits, int total_digits, int start, int prog, char* type, int index) {
+
+    int m, n;
+
+    for (int i = start; i < total_digits; i++) {
+
+        digits_count++;
+        curr_digits = realloc(curr_digits, digits_count * sizeof(int));
+        curr_digits[digits_count - 1] = digits[i];
+
+        // ISSUE WITH find_x_cand_unit(), can't know how many cells it found
+        // WILL WRITE OUT HERE, CAN MAYBE FUNCTIONALISE AND MERGE THESE 2 FUNCTIONS LATER!!!
+
+        int cells_added = 0;
+        for (int a = 0; a < 9; a++) {
+            m = unit[a][0];
+            n = unit[a][1];
+            int coord[2] = {m, n};
+            
+            /* Add any cells that contain the new digit but aren't already included */
+            if (grid[m][n][digits[i]]  && !coord_in_array(coord, curr_cells)) {
+                curr_cells = add_coord(curr_cells, coord);
+                cells_added++;
+            }
+        }
+
+        /* If not looking at enoug digits and haven't already passed 'z' cells, then iterate */
+        if (digits_count < z && curr_cells.count <= z) {
+            prog = check_hidden_combos(z, unit, digits, total_digits, i + 1, prog, type, index) || prog;
+        } 
+        
+        /* Check for Hidden Set */
+        else if (digits_count == z && curr_cells.count == z) {
+
+            /* An internal flag for if the found Hidden Set actually leads to removing any candidates */
+            int internal_prog = 0;
+
+            /* Remove all other candidates from those cells */
+            for (int x = 1; x < 10; x++) {
+                if (!int_in_array(x, curr_digits, digits_count)) {
+                    internal_prog = internal_prog || x_freq_block(x, curr_cells);
+                    x_remove_block(x, curr_cells);
+                }
+            }
+
+            prog = internal_prog || prog;
+
+            if (internal_prog) {
+                /* Print report */
+                char* terms[2] = {"Pair", "Triple"};
+                printf("Hidden %s: In %s %i, digits ", terms[z - 2], type, index);
+                for (int a = 0; a < digits_count; a++) {
+                    printf("%i", curr_digits[a]);
+                    if (a != digits_count - 1) { printf(", "); }
+                }
+                printf("\n");
+            }
+        }
+
+        /* Remove any cells added from this added digit */
+        for (int _ = 0; _ < cells_added; _++) {
+            curr_cells = remove_last_coord(curr_cells);
+        }
+
+        /* Remove the added digit */
+        digits_count--;
+        curr_digits = realloc(curr_digits, digits_count * sizeof(int));
+
+    }
+
+    return prog;
+
+}
+
+
+
+
 int check_hidden_set(int z, int unit[9][2], char* type, int index) {
 
     /* Check that 'z' is in range */
@@ -541,6 +654,7 @@ int check_hidden_set(int z, int unit[9][2], char* type, int index) {
 
     int count = 0;
 
+
     /* Check what digits only appear 'z' times in the unit */
     int* digits = malloc(count * sizeof(int));
 
@@ -552,69 +666,76 @@ int check_hidden_set(int z, int unit[9][2], char* type, int index) {
         }
     }
 
+
     if (count >= z) {
 
-        /* Need to have 'z' digits only present in the same 'z' cells */
-        for (int i = 0; i < count; i++) {
+        curr_cells = init_coords();
+        curr_digits = malloc(0);
+        digits_count = 0;
+        prog = check_hidden_combos(z, unit, digits, count, 0, prog, type, index) || prog ;
 
-            int num_matching = 1;
+        // /* Need to have 'z' digits only present in the same 'z' cells */
+        // for (int i = 0; i < count; i++) {
+
+        //     int num_matching = 1;
             
-            /* Will store the digits that match in where their candidates are in 'unit' */
-            int* matching = malloc(num_matching * sizeof(int));
-            matching[0] = digits[i];
+        //     /* Will store the digits that match in where their candidates are in 'unit' */
+        //     int* matching = malloc(num_matching * sizeof(int));
+        //     matching[0] = digits[i];
 
-            /* Find which indcies relative to 'unit' have 'digits[i] */
-            int* inds_i = find_x_cand_unit(unit, digits[i]);
+        //     /* Find which indices relative to 'unit' have 'digits[i] */
+        //     int* inds_i = find_x_cand_unit(unit, digits[i]);
 
-            /* Can end loop early if there's already enough cells that match */
-            for (int j = 0; j < i && num_matching < z; j++) {
+        //     /* Can end loop early if there's already enough cells that match */
+        //     for (int j = 0; j < i && num_matching < z; j++) {
 
-                /* Find which indcies relative to 'unit' have 'digits[i] */
-                int* inds_j = find_x_cand_unit(unit, digits[j]);
+        //         /* Find which indices relative to 'unit' have 'digits[i] */
+        //         int* inds_j = find_x_cand_unit(unit, digits[j]);
                 
-                if (compare_arrays(inds_i, inds_j, z, z)) {
-                    num_matching++;
-                    matching = realloc(matching, num_matching * sizeof(int));
-                    matching[num_matching - 1] = digits[j];
-                }
+        //         if (compare_arrays(inds_i, inds_j, z, z)) {
+        //             num_matching++;
+        //             matching = realloc(matching, num_matching * sizeof(int));
+        //             matching[num_matching - 1] = digits[j];
+        //         }
 
-                free(inds_j);
+        //         free(inds_j);
 
-            }
+        //     }
 
-            if (num_matching >= z) {
+        //     if (num_matching >= z) {
 
-                /* Convert the 'unit' indices in 'inds_i' to a coords struct */
-                coords cells = init_coords();
-                for (int j = 0; j < z; j++) {
-                    cells = add_coord(cells, unit[inds_i[j]]);
-                }
+        //         /* Convert the 'unit' indices in 'inds_i' to a coords struct */
+        //         coords cells = init_coords();
+        //         for (int j = 0; j < z; j++) {
+        //             cells = add_coord(cells, unit[inds_i[j]]);
+        //         }
 
-                /* Remove all other digits than those in 'matching' */
-                for (int x = 1; x < 10; x++) {
-                    if (!int_in_array(x, matching, z)) {
-                        prog = prog || (x_freq_block(x, cells) > 0);
-                        x_remove_block(x, cells);
-                    }
-                }
+        //         /* Remove all other digits than those in 'matching' */
+        //         for (int x = 1; x < 10; x++) {
+        //             if (!int_in_array(x, matching, z)) {
+        //                 prog = prog || (x_freq_block(x, cells) > 0);
+        //                 x_remove_block(x, cells);
+        //             }
+        //         }
 
-                /* If any candidates were actually removed */
-                if (prog) {
-                    char* terms[2] = {"Pair", "Triple"};
-                    printf("Hidden %s: found in %s %i\n", terms[z-2], type, index); // ADD MORE DETAILS LATER !!!!!
-                }
+        //         /* If any candidates were actually removed */
+        //         if (prog) {
+        //             char* terms[2] = {"Pair", "Triple"};
+        //             printf("Hidden %s: found in %s %i\n", terms[z-2], type, index); // ADD MORE DETAILS LATER !!!!!
+        //         }
 
-                del_coords(cells);
-            }
+        //         del_coords(cells);
+        //     }
 
-            free(matching);
-            free(inds_i);
+        //     free(matching);
+        //     free(inds_i);
 
-        }
+        // }
 
     }
 
     free(digits);
+    /* NOTE: No need to free 'curr_digits' or 'curr_cells' as both are naturally reduced to 0 */
     return prog;
 }
 

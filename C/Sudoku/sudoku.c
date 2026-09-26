@@ -98,13 +98,14 @@ int main() {
         prog = rectangles() || prog;
     }
 
+    print_grid(0);
+
     // naked_pair();
     // naked_triple();
     // naked_quadruple();
 
-    print_grid(1);
-
-    rectangles();
+    hidden_pair();
+    hidden_triple();
 
     // xy_chain();
 
