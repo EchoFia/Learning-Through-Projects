@@ -42,6 +42,16 @@ Based on the book _Sudoku Programming with C_, I shall implement 5 levels of str
 - **Naked Triple**: Same concept as Naked Pair
 - **Naked Quadruple**: Same concept as Naked Pair
 - **Hidden Triple**: Same concept as Hidden Pair
+- **X-Wing**: If the digit `x` is a candidate exactly twice in two rows, and in the same two columns of those rows, then in those two columns, `x` must be placed in those two rows.
+- **Y-Wing**: A length-3 XY-Chain (explained in **_Level 3 Strategies_**)
+
+## Level 3 Strategies
+
+- **Lines-3**: Same concept as X-Wing but for 3 lines
+- **Lines-4**: Same concept as X-Wing but for 4 lines
+- **XY-Chain**: Derives from chains of cells with 2 candidates, in which touching cells have a shared digit, that if the previous one cells is the shared digit, the latter cell’s digit is then forced. If this chain starts and end with the same digit, then one of those 2 cells must be that digit, and any cell that is touched by both of those cells can not be said digit. (More details in the cited book).
+- **NOTE:** In the cited book, for XY-Chains, Fig. 2.8 is incomplete, and Fig. 2.10 is incorrect.
+- **Rectangles**: A **corner cell** is one in which, for digit `x`, every cell with `x` as a candidate lies within 2 axes, one row & one column. Three corner cells in different boxes point to a 4th corner that cannot be `x`, as otherwise placing `x` in the other 3 corners is no longer possible.
 
 ## New Concepts
 
@@ -80,3 +90,4 @@ free(arr);
 - `extern` is used to bring global variables from the core file to imported files
 - `typedef a b` makes `b` an alias for `a` (also works for `struct a'` as `a`)
 - To do nothing (’pass’), just put a `;`
+- `int (*unit)[2]` is a pointer to an array of `int`'s that is 2 by n, and is equivalent to `int unit[n][2]` - How does this work ???? !!!!

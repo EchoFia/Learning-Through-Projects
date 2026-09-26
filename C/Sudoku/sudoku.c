@@ -45,17 +45,17 @@ int main() {
     // };
 
     int array[9][9] = {
-        {4, 0, 0,   0, 9, 7,   2, 0, 0},
-        {0, 7, 0,   0, 0, 0,   0, 0, 0},
-        {0, 0, 0,   0, 1, 0,   0, 0, 8},
+        {7, 0, 0,   0, 0, 0,   0, 1, 0},
+        {0, 0, 0,   0, 0, 0,   9, 0, 0},
+        {0, 3, 0,   1, 0, 4,   0, 0, 5},
 
-        {0, 4, 0,   0, 0, 9,   0, 5, 0},
-        {0, 0, 0,   1, 5, 0,   6, 0, 0},
-        {6, 0, 0,   0, 0, 2,   9, 3, 0},
+        {0, 0, 0,   9, 0, 0,   4, 0, 1},
+        {0, 8, 0,   0, 0, 0,   0, 0, 6},
+        {2, 0, 0,   0, 7, 0,   0, 5, 0},
 
-        {0, 2, 4,   0, 8, 0,   0, 0, 0},
-        {0, 0, 0,   5, 0, 0,   7, 0, 3},
-        {0, 9, 5,   0, 0, 6,   4, 0, 0},
+        {0, 0, 0,   0, 1, 0,   3, 0, 7},
+        {5, 0, 0,   0, 9, 0,   0, 6, 0},
+        {6, 0, 8,   0, 0, 0,   0, 0, 9},
     };
 
     /* Hardest one */
@@ -78,7 +78,7 @@ int main() {
     ///// OOh, have a flag for each strategy, like an index, and then have the solver function have a queue of which strategies to do next, and each strategy can add things that might work after it, as well as a general one that adds just one of each
 
     /* A flag to know if any progress is being made */
-    int prog = 0;
+    int prog = 1;
     while (prog && !check_finished()) { 
         print_grid(0);
         prog = 0;
@@ -98,25 +98,26 @@ int main() {
         prog = rectangles() || prog;
     }
 
-    print_grid(0);
+    // print_grid(0);
 
     // naked_pair();
     // naked_triple();
     // naked_quadruple();
 
-    hidden_pair();
-    hidden_triple();
+    // hidden_pair();
+    // hidden_triple();
 
     // xy_chain();
 
     ///// BEFORE DOING Y-WING OR XY-CHAIN, SHOULD ALWAYS DO THE NAKED SETS (SPECFICALLY PAIRS) AND HIDDEN SETS, AS THEY MIGHT GET SPOTTED BY XY-CHAIN BUT ARE EASIER TO DO WITH NAKED SET
 
-    print_grid(1);
+    // REMEMBER TO ADD TESTING TO MAKE SURE THAT IT CAN SPOT EVERYTHING
+
+    print_grid(0);
     if (check_finished()) {
-        // print_grid(0);
         printf("The sudoku is solved! :)\n");
     } else {
-        // print_grid(0);
+        print_grid(1);
         printf("The solver is stuck! :(\n");
     }
 

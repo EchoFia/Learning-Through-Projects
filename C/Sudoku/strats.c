@@ -22,7 +22,6 @@ int* curr_digits;
 int digits_count;
 /* NOTE: Will reuse 'curr_cells' */
 
-
 /* Declaring Global Variables for XY-Wing */
 int grid_2_cands[9][9];
 chain curr_chain;
@@ -86,7 +85,6 @@ coords unit_to_coords(int unit[9][2]) {
 }
 
 /* Function to make a 'coords' struct that contains all cells in the same units as 'rc[2]' */
-// CAN CLEAN UP, PERHAPS? NOT TOO OPTIMISED
 coords get_touching_block(int rc[2]) {
     int row_num = rc[0];
     int col_num = rc[1];
@@ -95,7 +93,7 @@ coords get_touching_block(int rc[2]) {
 
     coords touching_cells = init_coords();
 
-    /* */
+    /* Loop through all indices of each unit */
     for (int i = 0; i < 9; i++) {
         /* Add all the coords in the row, not the actual cell though */
         if (!coord_in_array(row[row_num][i], touching_cells) && i != col_num) {
@@ -167,23 +165,24 @@ chain remove_child(chain curr_chain) {
 
 /* Cleaning Up Grid */
 
-///// MAYBE MAKE SO IT CHECKS IF IT REMOVED ANYTHING????!!!!
+// IDEA: Have this function naturally check if anything was removed and return 'TRUE' if so ???? !!!!
 /* Removes 'x' as a candidate from cell (r, c) */
 void x_remove_single(int x, int r, int c) {
     grid[r][c][x] = 0;
     grid[r][c][0] = get_sum_subsection(grid[r][c], 1, 10);
 }
 
-/* Removes 'x' as a candidate from all cells in 'coords' */
+/* Removes 'x' as a candidate from all un-solved cells in 'coords' */
 void x_remove_block(int x, coords cells) {
     for (int i = 0; i < cells.count; i++) {
-        x_remove_single(x, cells.arr[i][0], cells.arr[i][1]);
+        if (!grid[cells.arr[i][0]][cells.arr[i][1]][10]) {
+            x_remove_single(x, cells.arr[i][0], cells.arr[i][1]);
+        }
     }
 }
 
 /* Removes 'x' as a candidate from all un-solved cells in 'unit' */
-// MAYBE USE THE BLOCK FUNCTION???!!!!
-void x_remove_unit_unsolv(int x, int unit[9][2]) {
+void x_remove_unit(int x, int unit[9][2]) {
     for (int i = 0; i < 9; i++) {
 
         if (!grid[unit[i][0]][unit[i][1]][10]) {
@@ -199,9 +198,9 @@ void new_solved_digit(int r, int c) {
     int x = grid[r][c][10];
 
     /* Remove 'x' as a possibility from its row, column and box */
-    x_remove_unit_unsolv(x, row[r]);
-    x_remove_unit_unsolv(x, col[c]);
-    x_remove_unit_unsolv(x, box[calc_box(r, c)]);
+    x_remove_unit(x, row[r]);
+    x_remove_unit(x, col[c]);
+    x_remove_unit(x, box[calc_box(r, c)]);
 }
 
 /* Initiates grid clean up when a digit, 'x', is solved */
@@ -288,7 +287,8 @@ int x_solved_block(int x, coords cells) {
     return result;
 }
 
-///// CAN I JUST HAVE ONE FUNCTION THAT CAN BE PASSED ANOTHER FUNCTION??? TO DO ALL OF THESE BLOCK TO UNIT THINGS???!!!
+// IDEA: Would be nice to have one function that converts all 'unit' functions to 'block functions' !!!!
+// PROBLEM: How do you pass functions into functions ???? !!!!
 
 /* Returns 1 if 'x' is solved in 'unit' */
 int x_solved_unit(int x, int unit[9][2]) {
@@ -300,7 +300,7 @@ int x_solved_unit(int x, int unit[9][2]) {
 
 /* Find which cells in a unit have 'x' as a candidate */
 /* NOTE: Remember to free(indices) after use */
-int* find_x_cand_unit(int unit[9][2], int x) {
+int* find_x_cand_unit(int x, int unit[9][2]) {
     int count = 0;
     int* indices = malloc(count * sizeof(int));
     int m, n;
@@ -320,7 +320,7 @@ int* find_x_cand_unit(int unit[9][2], int x) {
 
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
-/* Misc */
+/* Misc Functions */
 
 int compare_arrays(int* a, int* b, int len_a, int len_b) {
     if (len_a != len_b) {
@@ -436,7 +436,7 @@ int unique_cand() {
 /* Generalised Functions for Level 1 & 2 Strategies */
 
 /* Checks down each combination of 'z' cells to see if they form a Naked Set */
-int check_naked_combos(int z, coords cells_to_check, int unit[9][2], int start, int prog) {
+int check_naked_combos(int z, coords cells_to_check, int unit[9][2], int start, int prog, char* type, int index) {
 
     int m, n;
 
@@ -467,7 +467,7 @@ int check_naked_combos(int z, coords cells_to_check, int unit[9][2], int start, 
 
         /* If currently not looking at enough cells, then add iterate again, unless there's already too many distinct candidates */
         if (curr_cells.count < z && naked_count <= z) {
-            check_naked_combos(z, cells_to_check, unit, i + 1, prog);
+            check_naked_combos(z, cells_to_check, unit, i + 1, prog, type, index);
         } 
         
         /* If looking at enough cells, check if they form a Naked Set */
@@ -482,7 +482,7 @@ int check_naked_combos(int z, coords cells_to_check, int unit[9][2], int start, 
             int internal_prog = 0;
 
             /* Remove each candidate of the Naked Set from the rest of the unit */
-            for (int a = 0; a < z; a++) { 
+            for (int a = 0; a < z; a++) {
                 int x = naked_nums[a];
                 internal_prog = internal_prog || (x_freq_block(x, unit_not_set) > 0);
                 x_remove_block(x, unit_not_set);
@@ -492,12 +492,13 @@ int check_naked_combos(int z, coords cells_to_check, int unit[9][2], int start, 
 
             /* Print report if any candidates actually removed */
             if (internal_prog) {
-                printf("Found Naked %i: Digits ", z); ///// ADD MORE DETAIL!!!!!
+                char* terms[3] = {"Pair", "Triple", "Quadruple"};
+                printf("Naked %s: Digits {", terms[z - 2]);
                 for (int a = 0; a < z; a++) {
                     printf("%i", naked_nums[a]);
                     if (a != z - 1) { printf(", "); }
                 }
-                printf("\n");
+                printf("} in %s %i\n", type, index);
             }
 
         }
@@ -519,7 +520,7 @@ int check_naked_set(int z, int unit[9][2], char* type, int index) {
 
     /* Check that 'z' is in range */
     if ((z < 1) || (z > 4)) {
-        printf("Error: z out of range\n");
+        printf("NAKED SET ERROR: z = %i out of range\n", z);
         return 0;
     }
 
@@ -541,7 +542,7 @@ int check_naked_set(int z, int unit[9][2], char* type, int index) {
         curr_cells = init_coords();
         naked_nums = malloc(0);
         naked_count = 0;
-        prog = check_naked_combos(z, cells_to_check, unit, 0, 0);
+        prog = check_naked_combos(z, cells_to_check, unit, 0, 0, type, index);
 
     }
 
@@ -552,6 +553,7 @@ int check_naked_set(int z, int unit[9][2], char* type, int index) {
 
 }
 
+/* Loops through all units to look for Naked Sets */
 int naked_set(int z) {
     int prog = 0;
 
@@ -564,6 +566,7 @@ int naked_set(int z) {
     return prog;
 }
 
+/* Checks down each combination of 'z' digits to see if they form a Hidden Set */
 int check_hidden_combos(int z, int unit[9][2], int* digits, int total_digits, int start, int prog, char* type, int index) {
 
     int m, n;
@@ -574,10 +577,9 @@ int check_hidden_combos(int z, int unit[9][2], int* digits, int total_digits, in
         curr_digits = realloc(curr_digits, digits_count * sizeof(int));
         curr_digits[digits_count - 1] = digits[i];
 
-        // ISSUE WITH find_x_cand_unit(), can't know how many cells it found
-        // WILL WRITE OUT HERE, CAN MAYBE FUNCTIONALISE AND MERGE THESE 2 FUNCTIONS LATER!!!
-
+        /* Keep track of how many distinct cells are added, so easier to remove later on */
         int cells_added = 0;
+
         for (int a = 0; a < 9; a++) {
             m = unit[a][0];
             n = unit[a][1];
@@ -614,12 +616,12 @@ int check_hidden_combos(int z, int unit[9][2], int* digits, int total_digits, in
             if (internal_prog) {
                 /* Print report */
                 char* terms[2] = {"Pair", "Triple"};
-                printf("Hidden %s: In %s %i, digits ", terms[z - 2], type, index);
+                printf("Hidden %s: Digits {", terms[z - 2]);
                 for (int a = 0; a < digits_count; a++) {
                     printf("%i", curr_digits[a]);
                     if (a != digits_count - 1) { printf(", "); }
                 }
-                printf("\n");
+                printf("} in %s %i\n", type, index);
             }
         }
 
@@ -645,7 +647,7 @@ int check_hidden_set(int z, int unit[9][2], char* type, int index) {
 
     /* Check that 'z' is in range */
     if ((z < 1) || (z > 3)) {
-        printf("Error: z out of range\n");
+        printf("HIDDEN SET ERROR: z = %i out of range\n", z);
         return 0;
     }
 
@@ -666,71 +668,13 @@ int check_hidden_set(int z, int unit[9][2], char* type, int index) {
         }
     }
 
-
+    /* If there's less than 'z' digits that appear 2 to 'z' times, there's no chance for a naked set of size 'z' */
     if (count >= z) {
 
         curr_cells = init_coords();
         curr_digits = malloc(0);
         digits_count = 0;
         prog = check_hidden_combos(z, unit, digits, count, 0, prog, type, index) || prog ;
-
-        // /* Need to have 'z' digits only present in the same 'z' cells */
-        // for (int i = 0; i < count; i++) {
-
-        //     int num_matching = 1;
-            
-        //     /* Will store the digits that match in where their candidates are in 'unit' */
-        //     int* matching = malloc(num_matching * sizeof(int));
-        //     matching[0] = digits[i];
-
-        //     /* Find which indices relative to 'unit' have 'digits[i] */
-        //     int* inds_i = find_x_cand_unit(unit, digits[i]);
-
-        //     /* Can end loop early if there's already enough cells that match */
-        //     for (int j = 0; j < i && num_matching < z; j++) {
-
-        //         /* Find which indices relative to 'unit' have 'digits[i] */
-        //         int* inds_j = find_x_cand_unit(unit, digits[j]);
-                
-        //         if (compare_arrays(inds_i, inds_j, z, z)) {
-        //             num_matching++;
-        //             matching = realloc(matching, num_matching * sizeof(int));
-        //             matching[num_matching - 1] = digits[j];
-        //         }
-
-        //         free(inds_j);
-
-        //     }
-
-        //     if (num_matching >= z) {
-
-        //         /* Convert the 'unit' indices in 'inds_i' to a coords struct */
-        //         coords cells = init_coords();
-        //         for (int j = 0; j < z; j++) {
-        //             cells = add_coord(cells, unit[inds_i[j]]);
-        //         }
-
-        //         /* Remove all other digits than those in 'matching' */
-        //         for (int x = 1; x < 10; x++) {
-        //             if (!int_in_array(x, matching, z)) {
-        //                 prog = prog || (x_freq_block(x, cells) > 0);
-        //                 x_remove_block(x, cells);
-        //             }
-        //         }
-
-        //         /* If any candidates were actually removed */
-        //         if (prog) {
-        //             char* terms[2] = {"Pair", "Triple"};
-        //             printf("Hidden %s: found in %s %i\n", terms[z-2], type, index); // ADD MORE DETAILS LATER !!!!!
-        //         }
-
-        //         del_coords(cells);
-        //     }
-
-        //     free(matching);
-        //     free(inds_i);
-
-        // }
 
     }
 
@@ -739,6 +683,7 @@ int check_hidden_set(int z, int unit[9][2], char* type, int index) {
     return prog;
 }
 
+/* Loops through all units to look for Hidden Sets */
 int hidden_set(int z) {
     int prog = 0;
 
@@ -781,7 +726,8 @@ coords non_overlap_blocks(coords cells_a, coords cells_b) {
     return cells_a_not_b;
 }
 
-////// CHANGE THIS TO BE BETTER!!!
+// IDEA: Merge with non_overlap_blocks, as they're the same but opposites ???? !!!!
+/* Will get the co-ords of 'cells_a' that overlap with 'cells_b' */
 coords overlap_blocks(coords cells_a, coords cells_b) {
 
     coords cells_a_not_b = non_overlap_blocks(cells_a,  cells_b);
@@ -791,7 +737,7 @@ coords overlap_blocks(coords cells_a, coords cells_b) {
     return cells_a_and_b;
 }
 
-
+/* Will get the co-ords of 'unit_a' that don't overlap with 'unit_b' */
 coords non_overlap_units(int unit_a[9][2], int unit_b[9][2]) {
 
     coords cells_a = unit_to_coords(unit_a);
@@ -806,7 +752,7 @@ coords non_overlap_units(int unit_a[9][2], int unit_b[9][2]) {
 
 }
 
-
+/* Checks for Box-Line or Pointing Line: Idea of for 2 overlapping units, if only possible in the overlap for one, then it must be in the overlap for the other */
 int check_overlapping_units(int unit_a[9][2], int unit_b[9][2], char* a_type, int a_index, char* b_type, int b_index, char* strat_name) {
 
     /* Flag to track if anything in the grid has been updated */
@@ -817,7 +763,7 @@ int check_overlapping_units(int unit_a[9][2], int unit_b[9][2], char* a_type, in
 
     /* Checks if the units overlap */
     if(cells_a_not_b.count == 9) {
-        printf("Error: Passed in units that don't overlap\n"); ///// ADD MORE DETAIL!!!!
+        printf("ERROR: Passed in units that don't overlap\n"); // What type of error ???? !!!!
         return 0;
     }
 
@@ -837,9 +783,6 @@ int check_overlapping_units(int unit_a[9][2], int unit_b[9][2], char* a_type, in
                 x_remove_block(x, cells_a_not_b);
                 prog = 1;
             }
-
-            // int ran_var = x_freq_block(x, line_not_box);
-            // printf("Number of %i's: %i, in %s %i but not box %i\n", x, ran_var, line_type, line_index, box_index);
 
         }
     }
@@ -888,13 +831,15 @@ int pointing_line() {
 
 /* Generalised Functions for Level 2 & 3 Strategies */
 
+// NOTE: SAME PROBLEM FOR LINES-Z, IS ONLY FINDING FULL LINES !!!!!
+
 int check_lines_z(int z, char* type, char* strat_name) {
 
     int (*unit_a)[2];
     int (*unit_b)[2];
 
     if (!(strcmp(type, "row") == 0 || strcmp(type, "col") == 0)) {
-        printf("Error: Incorrect type entered\n");
+        printf("LINES-Z ERROR: Incorrect type entered, must be 'col' or 'row', got %s\n", type);
         return 0;
     }
 
@@ -902,7 +847,6 @@ int check_lines_z(int z, char* type, char* strat_name) {
 
     for (int x = 1; x < 10; x++) {
 
-        // JUST FOR COLUMNS FOR NOW
         for (int i = 0; i < 9; i++) {
 
             /* Equivalent to setting 'unit_a' to 'col[i]' OR 'row[i]' */
@@ -920,7 +864,7 @@ int check_lines_z(int z, char* type, char* strat_name) {
             matching[num_matching - 1] = i;
 
             
-            int* inds_i = find_x_cand_unit(unit_a, x);
+            int* inds_i = find_x_cand_unit(x, unit_a);
 
             for (int j = 0; j < i && num_matching < z; j++) {
 
@@ -933,7 +877,7 @@ int check_lines_z(int z, char* type, char* strat_name) {
 
                 if (x_freq_unit(x, unit_b) > z) { continue; }
 
-                int* inds_j = find_x_cand_unit(unit_b, x);
+                int* inds_j = find_x_cand_unit(x, unit_b);
 
                 if (compare_arrays(inds_i, inds_j, z, z)) {
                     num_matching++;
@@ -977,7 +921,7 @@ int check_lines_z(int z, char* type, char* strat_name) {
                     /* If any candidates were actually removed */
                     if (prog) {
                         // CHANGE - HARD CODED FOR Z = 2!!!!! Need a function probs to just make a nice string
-                        printf("Found %s for digit %i between %s %i and %s %i\n", strat_name, x, type, i, type, j);
+                        printf("%s: Digit %i between %s %i and %s %i\n", strat_name, x, type, i, type, j);
                     }
 
                     del_coords(cells);
@@ -1064,7 +1008,6 @@ void print_xy_chain(chain curr_chain, int x, int start) {
     }
     printf("\n");
 
-    print_grid(0);
 }
 
 /* Finds all potential new links for the chain to go to */
@@ -1100,8 +1043,6 @@ coords find_children_block (chain curr_chain, int rc[2]) {
     return children_cells;
 }
 
-
-
 /* Will add the new cell, check if any chains link back (form an XY-Wing), then find all potential next links */
 /* This function will then call itself with each of those children links, and check each branch of the possible chain */
 int check_chain(int new_cell[2]) { 
@@ -1129,7 +1070,7 @@ int check_chain(int new_cell[2]) {
     /* Check to see if any XY-Wings have formed */
     /* NOTE: No need to compare to the last 2 digits, hence the '- 1' */
 
-    // NOTE: Can maybe just compare to the initial digit, as this is causing repeating checks in this system??!!!
+    // NOTE: Can maybe just compare to the initial digit, as this is causing repeating checks in this system ???? !!!!
     for (int i = 0; i < curr_chain.chain_len - 1; i++) {
         if (new_digit == curr_chain.digits[i]) {
 
@@ -1137,8 +1078,6 @@ int check_chain(int new_cell[2]) {
             coords touching_block_a = get_touching_block(curr_chain.cells.arr[i]);
             coords touching_block_b = get_touching_block(curr_chain.cells.arr[curr_chain.chain_len - 1]);
             coords overlap = overlap_blocks(touching_block_a, touching_block_b);
-
-            // print_grid_coords(overlap);
 
             /* Remove that digit's candidates from those cells */
             int internal_prog = 0;
@@ -1152,7 +1091,7 @@ int check_chain(int new_cell[2]) {
             }
 
             if (internal_prog) {
-                print_xy_chain(curr_chain, new_digit, i); /// MAYBE PRINT OUT WHAT DIGITS WERE REMOVED FROM WHERE?!!!!
+                print_xy_chain(curr_chain, new_digit, i); // IDEA: Maybe print out what digits were removed from where ???? !!!!
             }
 
             prog = prog || internal_prog;
@@ -1181,8 +1120,8 @@ int check_chain(int new_cell[2]) {
     return prog; 
 }
 
-// NOTE: Can potentially change this to an explicit tree structure and try different algorithms?
-// NOTE: Currently finds each chain multiple times, how can we avoid that?
+// NOTE: Can potentially change this to an explicit tree structure and try different algorithms ????
+// NOTE: Currently finds each chain multiple times, how can we avoid that ???? !!!!
 int xy_chain() {
 
     int prog = 0;
@@ -1191,9 +1130,7 @@ int xy_chain() {
     for (int i = 0; i < 9; i++) { 
         for (int j = 0; j < 9; j++) {
             grid_2_cands[i][j] = (grid[i][j][0] == 2);
-            // printf("%i ", grid_2_cands[i][j]);
         }
-        // printf("\n");
     }
 
     /* Loop through each cell with 2 candidates as the start of the chain */
@@ -1308,7 +1245,7 @@ int find_rectangles(int x, coords corner_cells) {
                 for (int b = 0; b < count_cols; b++) {
 
                     /* If the opposite corner actually has that candidate to remove */
-                    if (grid[rows[a]][cols[b]][x]) {
+                    if (grid[cols[b]][rows[a]][x]) {
                         /* Remove the opposite corner, hence row & col swapped from their usual place */
                         x_remove_single(x, cols[b], rows[a]);
                         printf("Rectangle: Removed %i at (%i, %i), with other corner at (%i, %i)\n", x, cols[b], rows[a], m, n);
