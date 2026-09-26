@@ -66,8 +66,10 @@ int unique_cand();
 
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 /* Generalised Functions for Level 1 & 2 Strategies */
+int check_naked_combos(int z, coords cells_to_check, int unit[9][2], int start, int prog);
 int check_naked_set(int z, int unit[9][2], char* type, int index);
 int naked_set(int z);
+int check_hidden_combos(int z, int unit[9][2], int* digits, int total_digits, int start, int prog, char* type, int index);
 int check_hidden_set(int z, int unit[9][2], char* type, int index);
 int hidden_set(int z);
 
