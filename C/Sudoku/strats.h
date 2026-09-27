@@ -101,9 +101,14 @@ int lines_3();
 int lines_4();
 void print_xy_chain(chain curr_chain, int x, int start);
 coords find_children_block (chain curr_chain, int rc[2]);
-int check_chain(int new_cell[2]);
+int check_chain(int new_cell[2], int prog);
 int xy_chain();
 coords find_corner(int x, coords cells, int box_num);
 int find_rectangles(int x, coords corner_cells);
 int rectangles();
 
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+/* Level 3 Strategies */
+int find_snapshot_index(int a, int b, int c);
+int* take_snapshot();
+void reset_to_snapshot(int* snapshot);
