@@ -85,6 +85,7 @@ int pointing_line();
 
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 /* Generalised Functions for Level 2 & 3 Strategies */
+int check_lines_combos(int x, int z, int* unit_a_indices, int unit_a_count, int start, int prog, char* type, char* strat_name);
 int check_lines_z(int z, char* type, char* strat_name);
 
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */

@@ -98,17 +98,6 @@ int main() {
         prog = rectangles() || prog;
     }
 
-    // print_grid(0);
-
-    // naked_pair();
-    // naked_triple();
-    // naked_quadruple();
-
-    // hidden_pair();
-    // hidden_triple();
-
-    // xy_chain();
-
     ///// BEFORE DOING Y-WING OR XY-CHAIN, SHOULD ALWAYS DO THE NAKED SETS (SPECFICALLY PAIRS) AND HIDDEN SETS, AS THEY MIGHT GET SPOTTED BY XY-CHAIN BUT ARE EASIER TO DO WITH NAKED SET
 
     // REMEMBER TO ADD TESTING TO MAKE SURE THAT IT CAN SPOT EVERYTHING

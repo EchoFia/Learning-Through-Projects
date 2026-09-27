@@ -22,6 +22,12 @@ int* curr_digits;
 int digits_count;
 /* NOTE: Will reuse 'curr_cells' */
 
+/* Declaring Global Variables for Lines-Z */
+int unit_b_count;
+int* unit_b_indices;
+int curr_unit_a_count;
+int* curr_unit_a_indices;
+
 /* Declaring Global Variables for XY-Wing */
 int grid_2_cands[9][9];
 chain curr_chain;
@@ -159,6 +165,18 @@ chain remove_child(chain curr_chain) {
     curr_chain.digits = realloc(curr_chain.digits, (curr_chain.chain_len + 1) * sizeof(int));
 
     return curr_chain;
+}
+
+/* Merges two 'coords' structs, ignoring duplicate cells */
+coords merge_coords(coords cells_a, coords cells_b) {
+
+    for (int i = 0; i < cells_b.count; i++) {
+        if (!coord_in_array(cells_b.arr[i], cells_a)) {
+            cells_a = add_coord(cells_a, cells_b.arr[i]);
+        }
+    }
+
+    return cells_a;
 }
 
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
@@ -831,12 +849,113 @@ int pointing_line() {
 
 /* Generalised Functions for Level 2 & 3 Strategies */
 
-// NOTE: SAME PROBLEM FOR LINES-Z, IS ONLY FINDING FULL LINES !!!!!
+/* Iterates through the potential combinations of lines */
+int check_lines_combos(int x, int z, int* unit_a_indices, int unit_a_count, int start, int prog, char* type, char* strat_name) {
+
+    int m, n;
+
+    for (int i = start; i < unit_a_count; i++) {
+
+        /* Add the new row/col index */
+        curr_unit_a_count++;
+        curr_unit_a_indices = realloc(curr_unit_a_indices, curr_unit_a_count * sizeof(int));
+        curr_unit_a_indices[curr_unit_a_count - 1] = unit_a_indices[i];
+
+        /* A counter for the number of distinct col/row indices added so can easily be removed for the next check */
+        int num_added = 0;
+
+        /* Check all the indices of unit_b for digit 'x' in unit_a*/
+        for (int a = 0; a < 9; a++) {
+
+            if (strcmp(type, "row") == 0) {
+                m = unit_a_indices[i];
+                n = a;
+            } else {
+                m = a;
+                n = unit_a_indices[i];
+            }
+
+            if (grid[m][n][x] && !int_in_array(a, unit_b_indices, unit_b_count)) {
+                num_added++;
+                unit_b_count++;
+                unit_b_indices = realloc(unit_b_indices, unit_b_count * sizeof(int));
+                unit_b_indices[unit_b_count - 1] = a;
+            }
+
+        }
+
+        /* If not enough cols/rows, then iterate, as long as not too many rows/cols already */
+        if (curr_unit_a_count < z && unit_b_count <= z) {
+            prog = check_lines_combos(x, z, unit_a_indices, unit_a_count, i + 1, prog, type, strat_name) || prog;
+        } else if (curr_unit_a_count == z && unit_b_count == z) {
+
+            /* Make a 'coords' struct of things in units_b but not units_a */  
+            coords cells_a = init_coords();
+            coords cells_b = init_coords();
+            for (int b = 0; b < unit_b_count; b++) {
+                coords new_cells_a;
+                coords new_cells_b;
+
+                if (strcmp(type, "row") == 0) {
+                    new_cells_a = unit_to_coords(row[curr_unit_a_indices[b]]);
+                    new_cells_b = unit_to_coords(col[unit_b_indices[b]]);
+                } else {
+                    new_cells_a = unit_to_coords(col[curr_unit_a_indices[b]]);
+                    new_cells_b = unit_to_coords(row[unit_b_indices[b]]);   
+                }
+
+                cells_a = merge_coords(cells_a, new_cells_a);
+                cells_b = merge_coords(cells_b, new_cells_b);
+                del_coords(new_cells_a);
+                del_coords(new_cells_b);
+            }
+
+            coords cells_to_remove = non_overlap_blocks(cells_b, cells_a);
+
+            del_coords(cells_a);
+            del_coords(cells_b);
+
+            /* If any candidates of digit 'x' to actually remove */
+            if (x_freq_block(x, cells_to_remove) > 0) {
+
+                x_remove_block(x, cells_to_remove);
+
+                /* Print report */
+                printf("%s: Digit %i in %ss {", strat_name, x, type);
+                for (int b = 0; b < curr_unit_a_count; b++) {
+                    printf("%i", curr_unit_a_indices[b]);
+                    if (b != curr_unit_a_count - 1) { printf(", "); }
+                }
+
+                char* other_type = "row";
+                if (strcmp(type, "row") == 0) { other_type = "col"; }
+
+                printf("} must be in %ss {", other_type);
+                for (int b = 0; b < unit_b_count; b++) {
+                    printf("%i", unit_b_indices[b]);
+                    if (b != unit_b_count - 1) { printf(", "); }
+                }
+                printf("}\n");
+
+            }
+
+            del_coords(cells_to_remove);
+
+        }
+
+        /* Remove things added for this branch, so can check the next iteration */
+        unit_b_count -= num_added;
+        unit_b_indices = realloc(unit_b_indices, unit_b_count * sizeof(int));
+        curr_unit_a_count--;
+        curr_unit_a_indices = realloc(curr_unit_a_indices, curr_unit_a_count * sizeof(int));
+
+    }
+
+    return prog;
+
+}
 
 int check_lines_z(int z, char* type, char* strat_name) {
-
-    int (*unit_a)[2];
-    int (*unit_b)[2];
 
     if (!(strcmp(type, "row") == 0 || strcmp(type, "col") == 0)) {
         printf("LINES-Z ERROR: Incorrect type entered, must be 'col' or 'row', got %s\n", type);
@@ -845,99 +964,47 @@ int check_lines_z(int z, char* type, char* strat_name) {
 
     int prog = 0;
 
+    /* Loop through every digit */
     for (int x = 1; x < 10; x++) {
 
+        int unit_a_count = 0;
+        int* unit_a_indices = malloc(unit_a_count * sizeof(int));
+        int prog = 0;
+
+        
         for (int i = 0; i < 9; i++) {
 
-            /* Equivalent to setting 'unit_a' to 'col[i]' OR 'row[i]' */
-            if (strcmp(type, "row") == 0) {
-                unit_a = row[i];
-            } else {
-                unit_a = col[i];
-            }
-
-            /* If there's more than 'z' candidates for 'x' in 'unit', can't be a Lines-Z */
-            if (x_freq_unit(x, unit_a) > z) { continue; }
-
-            int num_matching = 1;
-            int* matching = malloc(num_matching * sizeof(int));
-            matching[num_matching - 1] = i;
-
             
-            int* inds_i = find_x_cand_unit(x, unit_a);
-
-            for (int j = 0; j < i && num_matching < z; j++) {
-
-                /* Equivalent to setting 'unit_b' to 'col[j]' OR 'row[j]' */
-                if (strcmp(type, "row") == 0) {
-                    unit_b = row[j];
-                } else {
-                    unit_b = col[j];
+            if (strcmp(type, "row") == 0) {
+                if (x_freq_unit(x, row[i]) <= z && !x_solved_unit(x, row[i])) {
+                    unit_a_count++;
+                    unit_a_indices = realloc(unit_a_indices, unit_a_count * sizeof(int));
+                    unit_a_indices[unit_a_count - 1] = i;
                 }
-
-                if (x_freq_unit(x, unit_b) > z) { continue; }
-
-                int* inds_j = find_x_cand_unit(x, unit_b);
-
-                if (compare_arrays(inds_i, inds_j, z, z)) {
-                    num_matching++;
-                    matching = realloc(matching, num_matching * sizeof(int));
-                    matching[num_matching - 1] = j;
+            } else {
+                if (x_freq_unit(x, col[i]) <= z && !x_solved_unit(x, col[i])) {
+                    unit_a_count++;
+                    unit_a_indices = realloc(unit_a_indices, unit_a_count * sizeof(int));
+                    unit_a_indices[unit_a_count - 1] = i;
                 }
-
-                if (num_matching >= z) {
-
-                    /* Convert the 'unit' indices in 'inds_i' to a coords struct */
-                    coords cells = init_coords();
-
-                    /* 'inds_i' will be the list of rows/cols (opposite to 'type') to remove from */
-                    for (int k = 0; k < z; k++) {
-
-                        for (int l = 0; l < 9; l++) {
-
-                            /* If not in matching */
-                            if (!int_in_array(l, matching, z)) {
-
-                                int rc[2];
-                                if (strcmp(type, "row") == 0) {
-                                    rc[0] = l;
-                                    rc[1] = inds_i[k];
-                                } else {
-                                    rc[0] = inds_i[k];
-                                    rc[1] = l;
-                                }
-
-                                cells = add_coord(cells, rc);
-                            }
-                        }
-                    }
-
-                    // print_grid_coords(cells);
-
-                    /* Remove 'x' from all 'cells' */
-                    prog = prog || (x_freq_block(x, cells) > 0);
-                    x_remove_block(x, cells);
-
-                    /* If any candidates were actually removed */
-                    if (prog) {
-                        // CHANGE - HARD CODED FOR Z = 2!!!!! Need a function probs to just make a nice string
-                        printf("%s: Digit %i between %s %i and %s %i\n", strat_name, x, type, i, type, j);
-                    }
-
-                    del_coords(cells);
-
-                }
-
-                free(inds_j);
-
             }
+        }
 
-            free(inds_i);
-            free(matching);
+        if (unit_a_count >= z) {
+
+            unit_b_count = 0;
+            unit_b_indices = malloc(unit_b_count * sizeof(int));
+            curr_unit_a_count = 0;
+            curr_unit_a_indices = malloc(curr_unit_a_count * sizeof(int));
+            prog = check_lines_combos(x, z, unit_a_indices, unit_a_count, 0, prog, type, strat_name) || prog;
 
         }
 
+        free(unit_a_indices);
+
     }
+
+    /* NOTE: No need to free() any of the global int* variables as they naturally realloc themselves to 0 */
 
     return prog;
 }
