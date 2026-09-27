@@ -11,6 +11,7 @@ extern int grid[9][9][11];
 extern int row[9][9][2];
 extern int col[9][9][2];
 extern int box[9][9][2];
+extern int print_flag;
 
 /* Declaring Global Variables for Naked Sets */
 coords curr_cells;
@@ -393,7 +394,7 @@ int naked_single() {
 
                         /* Set the 'solved' index to the value of the cell */
                         grid[i][j][10] = k; 
-                        printf("Naked Single: placed %i at (%i, %i)\n", k, i, j); 
+                        if (print_flag) { printf("Naked Single: placed %i at (%i, %i)\n", k, i, j);  }
                     }
                 }
 
@@ -424,7 +425,9 @@ int check_unique_cand(int unit[9][2], char* type, int index) {
                     /* Add in the solved digit to the cell */
                     solve_digit(x, unit[i][0], unit[i][1]);
 
-                    printf("Unique Candidate: placed %i at (%i, %i), unique in %s %i\n", x, unit[i][0], unit[i][1], type, index);
+                    if (print_flag) {
+                        printf("Unique Candidate: placed %i at (%i, %i), unique in %s %i\n", x, unit[i][0], unit[i][1], type, index);
+                    }
                     prog = 1;
                 }
             }
@@ -509,7 +512,7 @@ int check_naked_combos(int z, coords cells_to_check, int unit[9][2], int start, 
             prog = prog || internal_prog;
 
             /* Print report if any candidates actually removed */
-            if (internal_prog) {
+            if (internal_prog && print_flag) {
                 char* terms[3] = {"Pair", "Triple", "Quadruple"};
                 printf("Naked %s: Digits {", terms[z - 2]);
                 for (int a = 0; a < z; a++) {
@@ -631,7 +634,7 @@ int check_hidden_combos(int z, int unit[9][2], int* digits, int total_digits, in
 
             prog = internal_prog || prog;
 
-            if (internal_prog) {
+            if (internal_prog && print_flag) {
                 /* Print report */
                 char* terms[2] = {"Pair", "Triple"};
                 printf("Hidden %s: Digits {", terms[z - 2]);
@@ -795,7 +798,9 @@ int check_overlapping_units(int unit_a[9][2], int unit_b[9][2], char* a_type, in
             /* Only if no 'x' candidates in 'cells_b_not_a' and are 'x' candidates to remove in 'cells_a_not_b */
             if (x_freq_block(x, cells_b_not_a) == 0 && x_freq_block(x, cells_a_not_b) > 0) {
 
-                printf("%s: Digit %i must be in %s %i in %s %i\n", strat_name, x, b_type, b_index, a_type, a_index);
+                if (print_flag) {
+                    printf("%s: Digit %i must be in %s %i in %s %i\n", strat_name, x, b_type, b_index, a_type, a_index);
+                }
 
                 /* Clean up the non-overlapping region of the box */
                 x_remove_block(x, cells_a_not_b);
@@ -921,21 +926,23 @@ int check_lines_combos(int x, int z, int* unit_a_indices, int unit_a_count, int 
                 x_remove_block(x, cells_to_remove);
 
                 /* Print report */
-                printf("%s: Digit %i in %ss {", strat_name, x, type);
-                for (int b = 0; b < curr_unit_a_count; b++) {
-                    printf("%i", curr_unit_a_indices[b]);
-                    if (b != curr_unit_a_count - 1) { printf(", "); }
-                }
+                if (print_flag) {
+                    printf("%s: Digit %i in %ss {", strat_name, x, type);
+                    for (int b = 0; b < curr_unit_a_count; b++) {
+                        printf("%i", curr_unit_a_indices[b]);
+                        if (b != curr_unit_a_count - 1) { printf(", "); }
+                    }
 
-                char* other_type = "row";
-                if (strcmp(type, "row") == 0) { other_type = "col"; }
+                    char* other_type = "row";
+                    if (strcmp(type, "row") == 0) { other_type = "col"; }
 
-                printf("} must be in %ss {", other_type);
-                for (int b = 0; b < unit_b_count; b++) {
-                    printf("%i", unit_b_indices[b]);
-                    if (b != unit_b_count - 1) { printf(", "); }
+                    printf("} must be in %ss {", other_type);
+                    for (int b = 0; b < unit_b_count; b++) {
+                        printf("%i", unit_b_indices[b]);
+                        if (b != unit_b_count - 1) { printf(", "); }
+                    }
+                    printf("}\n");
                 }
-                printf("}\n");
 
             }
 
@@ -1112,12 +1119,12 @@ coords find_children_block (chain curr_chain, int rc[2]) {
 
 /* Will add the new cell, check if any chains link back (form an XY-Wing), then find all potential next links */
 /* This function will then call itself with each of those children links, and check each branch of the possible chain */
-int check_chain(int new_cell[2]) { 
+int check_chain(int new_cell[2], int prog) { 
 
     int m, n;
-    int prog = 0;
+    // int prog = 0;
 
-    /* Figure out wahat the new digit is */
+    /* Figure out what the new digit is */
     int* cands = get_cands(new_cell[0], new_cell[1]);
     int new_digit;
     if (curr_chain.digits[curr_chain.chain_len] == cands[0]) { 
@@ -1126,14 +1133,13 @@ int check_chain(int new_cell[2]) {
         new_digit = cands[0];
     } else {
         free(cands);
-        printf("Error: check_chain gone wrong\n"); //ADD MORE LATER!!!!
-        return 0;
+        if (print_flag) { printf("XY-CHAIN ERROR: check_chain gone wrong\n"); } // ADD MORE LATER !!!!
+        return -1; // Will cause XY-Chain to stop
     }
     free(cands);
 
     curr_chain = add_chain(curr_chain, new_cell, new_digit);
 
-    // THE -1 IS WEIRD AND DOESN'T MATTER, CAN'T POSSIBLY BE IT'S OTHER DIGIT, SO ITS FINE
     /* Check to see if any XY-Wings have formed */
     /* NOTE: No need to compare to the last 2 digits, hence the '- 1' */
 
@@ -1157,7 +1163,7 @@ int check_chain(int new_cell[2]) {
                 }
             }
 
-            if (internal_prog) {
+            if (internal_prog && print_flag) {
                 print_xy_chain(curr_chain, new_digit, i); // IDEA: Maybe print out what digits were removed from where ???? !!!!
             }
 
@@ -1176,10 +1182,18 @@ int check_chain(int new_cell[2]) {
     
     /* Loop through all children, and iterate them back into this function */
     for (int i = 0; i < children_cells.count; i++) {
-        check_chain(children_cells.arr[i]);
+        int new_prog = check_chain(children_cells.arr[i], prog);
 
         /* Removes the added child link, so can explore the next */
         curr_chain = remove_child(curr_chain);
+
+        /* Exit XY-Chain if -1 is returned */
+        if (new_prog == -1) {
+            del_coords(children_cells);
+            return -1;
+        }
+
+        prog = new_prog || prog;
     }
 
     del_coords(children_cells);
@@ -1212,7 +1226,7 @@ int xy_chain() {
                     curr_chain = init_chain(coord, k);
 
                     /* Starts the iterative loop to search for the next chain link */
-                    prog = check_chain(coord) || prog;
+                    prog = check_chain(coord, prog) == 1 || prog;
 
                     del_chain(curr_chain);
 
@@ -1315,7 +1329,9 @@ int find_rectangles(int x, coords corner_cells) {
                     if (grid[cols[b]][rows[a]][x]) {
                         /* Remove the opposite corner, hence row & col swapped from their usual place */
                         x_remove_single(x, cols[b], rows[a]);
-                        printf("Rectangle: Removed %i at (%i, %i), with other corner at (%i, %i)\n", x, cols[b], rows[a], m, n);
+                        if (print_flag) {
+                            printf("Rectangle: Removed %i at (%i, %i), with other corner at (%i, %i)\n", x, cols[b], rows[a], m, n);
+                        }
                     }
                 }
             }
@@ -1354,3 +1370,33 @@ int rectangles() {
     return prog;
 
 }
+
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* Level 4 Strategies */
+
+int find_snapshot_index(int a, int b, int c) {
+    return a * 9 * 11 + b * 11 + c;
+}
+
+/* Saves the current state of the grid[9][9][11] object */
+int* take_snapshot() {
+    /* Store as a flat array */
+    int* snapshot = malloc(9 * 9 * 11 * sizeof(int));
+    int* grid_pointer = &grid[0][0][0];
+    memcpy(snapshot, grid_pointer, 9 * 9 * 11 * sizeof(int));
+    
+    return snapshot;
+}
+
+/* Resets the grid back to a previous saved state */
+void reset_to_snapshot(int* snapshot) {
+    for (int i = 0; i < 9; i++) {
+        for (int j = 0; j < 9; j++) {
+            for (int k = 0; k < 11; k++) {
+                grid[i][j][k] = snapshot[find_snapshot_index(i, j, k)];
+            }
+        }
+    }
+}
+

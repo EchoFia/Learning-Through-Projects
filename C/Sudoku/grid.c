@@ -143,3 +143,14 @@ int check_finished() {
     }
     return 1;
 }
+
+/* Returns 'TRUE' if the grid is impossible (a cell has 0 candidates possible) */
+int check_not_possible() {
+    for (int i = 0; i < 9; i++) {
+        for (int j = 0; j < 9; j++) {
+            if (grid[i][j][0] == 0) { return 1; }
+        }
+    }
+
+    return 0;
+}

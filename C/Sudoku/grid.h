@@ -10,3 +10,4 @@ void print_grid_coords(coords cells);
 
 /* Checking State of Grid */
 int check_finished();
+int check_not_possible();
