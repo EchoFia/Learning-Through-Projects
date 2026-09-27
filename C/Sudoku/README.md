@@ -53,6 +53,10 @@ Based on the book _Sudoku Programming with C_, I shall implement 5 levels of str
 - **NOTE:** In the cited book, for XY-Chains, Fig. 2.8 is incomplete, and Fig. 2.10 is incorrect.
 - **Rectangles**: A **corner cell** is one in which, for digit `x`, every cell with `x` as a candidate lies within 2 axes, one row & one column. Three corner cells in different boxes point to a 4th corner that cannot be `x`, as otherwise placing `x` in the other 3 corners is no longer possible.
 
+## Level 4 Strategies
+
+- **Backtracking**: If stuck, try solving a digit with one of its candidates. If that leads to an impossible situation, reset back to before that digit was added and try again.
+
 ## New Concepts
 
 - A concept I was struggling with was Variable Length Arrays (VLA’s), especially higher-dimension array, which I believe there are multiple ways of doing, of which I’ve chosen the one described below
@@ -91,3 +95,4 @@ free(arr);
 - `typedef a b` makes `b` an alias for `a` (also works for `struct a'` as `a`)
 - To do nothing (’pass’), just put a `;`
 - `int (*unit)[2]` is a pointer to an array of `int`'s that is 2 by n, and is equivalent to `int unit[n][2]` - How does this work ???? !!!!
+- `memcpy(pointer_1, pointer_2, size_of_memory)` copies across a `size_of_memory` block from `pointer_2 `to `pointer_1`
