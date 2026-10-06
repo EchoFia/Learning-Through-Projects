@@ -7,26 +7,31 @@
 constexpr int width  = 800;
 constexpr int height = 800;
 
-constexpr TGAColor white   = {255, 255, 255, 255}; // attention, BGRA order
-constexpr TGAColor green   = {  0, 255,   0, 255};
-constexpr TGAColor red     = {  0,   0, 255, 255};
-constexpr TGAColor blue    = {255, 128,  64, 255};
-constexpr TGAColor yellow  = {  0, 200, 255, 255};
+/* Colours are stored in BGRA order */
+constexpr TGAColor white   = { 255, 255, 255, 255 };
+constexpr TGAColor green   = {   0, 255,   0, 255 };
+constexpr TGAColor red     = {   0,   0, 255, 255 };
+constexpr TGAColor blue    = { 255, 128,  64, 255 };
+constexpr TGAColor yellow  = {   0, 200, 255, 255 };
 
+/* Draws a line from (ax, ay) to (bx, by) */
 void line(int ax, int ay, int bx, int by, TGAImage &framebuffer, TGAColor color) {
     bool steep = std::abs(ax-bx) < std::abs(ay-by);
-    if (steep) { // if the line is steep, we transpose the image
+    /* If the line is steep, i.e. longer in the y-axis than x-axis, transpose the image */
+    if (steep) {
         std::swap(ax, ay);
         std::swap(bx, by);
     }
-    if (ax>bx) { // make it left−to−right
+    /* Draw everything from left to right */
+    if (ax>bx) {
         std::swap(ax, bx);
         std::swap(ay, by);
     }
     int y = ay;
     int ierror = 0;
-    for (int x=ax; x<=bx; x++) {
-        if (steep) // if transposed, de−transpose
+    for (int x = ax; x <= bx; x++) {
+        /* If transposed, de-transpose */
+        if (steep)
             framebuffer.set(y, x, color);
         else
             framebuffer.set(x, y, color);
@@ -38,9 +43,11 @@ void line(int ax, int ay, int bx, int by, TGAImage &framebuffer, TGAColor color)
     }
 }
 
-std::tuple<int,int> project(vec3 v) { // First of all, (x,y) is an orthogonal projection of the vector (x,y,z).
-    return { (v.x + 1.) *  width/2,   // Second, since the input models are scaled to have fit in the [-1,1]^3 world coordinates,
-             (v.y + 1.) * height/2 }; // we want to shift the vector (x,y) and then scale it to span the entire screen.
+/* (v.x, v.y) is an orthogonal projection of the spacial vector (x, y, z) */
+/* (v.x, v.y) is scaled to span from -1 to 1 in all axes */
+std::tuple<int,int> project(vec3 v) {
+    return { (v.x + 1.) *  width/2,
+             (v.y + 1.) * height/2 };
 }
 
 int main(int argc, char** argv) {
@@ -52,7 +59,8 @@ int main(int argc, char** argv) {
     Model model(argv[1]);
     TGAImage framebuffer(width, height, TGAImage::RGB);
 
-    for (int i=0; i<model.nfaces(); i++) { // iterate through all triangles
+    /* Iterate through all triangles */
+    for (int i = 0; i < model.nfaces(); i++) {
         auto [ax, ay] = project(model.vert(i, 0));
         auto [bx, by] = project(model.vert(i, 1));
         auto [cx, cy] = project(model.vert(i, 2));
@@ -61,9 +69,10 @@ int main(int argc, char** argv) {
         line(cx, cy, ax, ay, framebuffer, red);
     }
 
-    for (int i=0; i<model.nverts(); i++) { // iterate through all vertices
-        vec3 v = model.vert(i);            // get i-th vertex
-        auto [x, y] = project(v);          // project it to the screen
+    /* Iterate through all vertices */
+    for (int i = 0; i < model.nverts(); i++) {
+        vec3 v = model.vert(i);
+        auto [x, y] = project(v);
         framebuffer.set(x, y, white);
     }
 
