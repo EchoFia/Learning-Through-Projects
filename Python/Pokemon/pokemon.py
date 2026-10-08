@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 
+# I'm thinking that I will have a class of Pokemon for an actual individual pokemon used for calculations and things, and then a DataBase to store everything in that can easily be read in due to the 
+
 class Pokemon:
 
     def __init__(self, nat_index, gen, name, type1, type2, height, weight, hp, attack, defense, sp_attack, sp_defense, speed, desc, common_abilities, hidden_ability):
@@ -56,3 +58,5 @@ def fetch_pokemons():
         pokemons.append(Pokemon(*args))
 
     return pokemons
+
+MAX_DEX = 1025
