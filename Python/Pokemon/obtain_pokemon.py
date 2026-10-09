@@ -1,12 +1,28 @@
+''' 
+Scrapes for the pokemon information at the following sites:
+ - serebii.net (pokemon details)
+ - https://www.pokemon.com/uk/pokedex (descriptions)
+ - https://bulbapedia.bulbagarden.net/ (artwork)
+'''
+
+### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
+
+### Import Modules ###
+
+# Import standard modules
 import time
 import re
 import requests
 from bs4 import BeautifulSoup
 
-MAX_DEX = 1025
+# Import other files
+from pokemon import MAX_DEX
 
-# Retrieve the HTML file politely
+### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
+### Scraping the Information ###
+
+# Initiates the session globally
 session = requests.Session()
 # UPDATE SESSIONS HEADERS!!!! ????
 
@@ -77,4 +93,8 @@ for i in range(MAX_DEX):
     if len(pokemon_pages[i+1]) < 2:
         print(pokemon_pages[i+1])
 
-# Parse the HTML file
+### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
+
+### Parse the HTML Files ###
+
+
