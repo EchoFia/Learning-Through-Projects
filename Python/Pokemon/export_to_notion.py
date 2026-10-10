@@ -73,7 +73,8 @@ notion_headers = [
     "Height", 
     "Weight", 
     "Description", 
-    "Sprite"
+    "Sprite",
+    "Tags"
 ]
 
 
@@ -113,6 +114,14 @@ for i in range(len(pokemons)):
         mon_abs = ','.join(mon.comm_abs)
     mon_sprite = f"https://raw.githubusercontent.com/EchoFia/Learning-Through-Projects/refs/heads/main/Python/Pokemon/images/img{i}.png"
 
+    mon_tags = []
+    if mon.is_mega: mon_tags.append("Mega")
+    if mon.is_alolan: mon_tags.append("Alolan")
+    if mon.is_galarian: mon_tags.append("Galarian")
+    if mon.is_hisuian: mon_tags.append("Hisuian")
+    if mon.is_paldean: mon_tags.append("Paldean")
+    if mon.is_alt_form: mon_tags.append("Alternate Form")
+    mon_tags = ','.join(mon_tags)
 
     pokemon_data = [
         mon.nat_index,
@@ -130,7 +139,8 @@ for i in range(len(pokemons)):
         mon.height,
         mon.weight,
         mon.desc,
-        mon_sprite
+        mon_sprite,
+        mon_tags
     ]
 
     # Append the new 'pokemon_data' to the DataFrame
