@@ -80,12 +80,12 @@ def find_pokemon_page(name, has_alt_form):
     # For the Farfetch'd line
     name = name.replace('\'', '')
 
-    # Ignoring the previously mentioned pokemon, only paradox pokemon have 2 base names
+    # Ignoring the previously mentioned pokemon, only Tapu's paradox pokemon have 2 base names
     # Every other pokemon with 2+ names should be an alternate form of a pokemon
     if has_alt_form:
         name = name.split(' ')
 
-        if name[0] in ["Mega", "Primal", "Alolan", "Galarian", "Hisuian", "Paldean", "Partner"]: # GMax????
+        if name[0] in ["Mega", "Primal", "Alolan", "Galarian", "Hisuian", "Paldean", "Partner"]:
             name = name[1]
         else:
             name = name[0]
@@ -153,6 +153,7 @@ def parse_pokedex(soup):
                 has_alt_form = True
                 mons_df.loc[index - 1, "has_alt_form"] = True
 
+        # Save all the variables into the DataFrame
         mons_df.loc[index, "nat_index"] = int(texts[0]) # Naturally removes the '\n' in its string
         mons_df.loc[index, "name"] = texts[1]
         mons_df.loc[index, "type1"] = types[0]
@@ -175,15 +176,36 @@ def parse_pokedex(soup):
 
     return mons_df
 
+def find_active_id(soup, name, is_alt_form):
+    """ Pokemon with alternate forms store each form's data in a different tab with a unique id """
 
+    div = soup.find("div", class_ = "sv-tabs-tab-list")
 
+    # Tab naming is irregular, so will look for how 'similar' the tab's name is by seeing
+    # how many identical words it has that are in the pokemon's name
+    most_matches = 0
+    corr_a = None # 'Correct' <a> object, will store the current tab with the most matches
 
+    for a in div.find_all("a"):
+        matches = 0
 
+        name_words = name.split(' ')
+        for word in name_words:
+            if word in a.get_text().split(' '):
+                matches += 1
 
+        # In every case of equal matches for an alternate pokemon, the desired <a> is the latter one
+        if matches > most_matches or (matches == most_matches and is_alt_form): 
+            most_matches = matches
+            corr_a = a
 
-def get_value(soup, val, id_ = None):
-    """" Scans the pokemon page for specific information """
+    if corr_a == None:
+        return None
+    else:
+        return corr_a['href'][1:] # Removes the '#' at the start of the id
 
+def get_value(soup, attr, id_ = None):
+    """" Scans the pokemon page for specific information, 'attr' """
 
     if id_ == None:
         divs = soup.find_all("div", class_ = "sv-tabs-panel") # sv for Gen IX
@@ -192,18 +214,13 @@ def get_value(soup, val, id_ = None):
 
     for div in divs:
 
-        # CHANGE TO USE TR's
-
         ths = div.find_all("th")
         tds = div.find_all("td")
 
-        if len(ths) == 0 or len(tds) == 0:
-            continue
-
+        # This works as there are equal number of <td> and <th> blocks to begin with (so indexing aligns)
         for i in range(min(len(ths), len(tds))):
-            if ths[i].get_text() == val:
+            if ths[i].get_text() == attr:
                 return tds[i]
-
 
 def get_height(soup, id_ = None):
     height = get_value(soup, "Height", id_).get_text()
@@ -224,15 +241,16 @@ def get_abils(soup, id_ = None):
     for a in abils_td.find_all("a"):
         abils.append(a.get_text())
 
+    # Hidden Ability is written in a <small> object
     if len(abils_td.find_all("small")) != 0:
         hidd_abil = abils[-1]
         del abils[-1]
 
-    abils = '|'.join(abils) # Can't have them as a csv cause it's getting saved to a csv
+    abils = '|'.join(abils) # Can't separate with a ',' because it's getting saved to a csv
 
     return abils, hidd_abil
 
-def get_img(soup, df_index, id_ = None):
+def get_img(soup, id_ = None):
 
     if id_ == None:
         div = soup.find("div", class_ = "sv-tabs-panel") # sv for Gen IX
@@ -244,45 +262,11 @@ def get_img(soup, df_index, id_ = None):
         return None
     return pic["src"]
 
-
-
-def find_active_id(soup, name, is_alt_form):
-    """  """
-
-    div = soup.find("div", class_ = "sv-tabs-tab-list")
-
-    most_matches = 0
-    corr_a = None
-
-    # print(name.split(' '))
-
-    for a in div.find_all("a"):
-        # print(a.get_text().split(' '))
-        matches = 0
-
-        name_words = name.split(' ')
-        for word in name_words:
-            # if word + " " in a.get_text() or " " + word in a.get_text():
-            if word in a.get_text().split(' '):
-                matches += 1
-
-        if matches > most_matches or (matches == most_matches and is_alt_form): # = Just makes it choose the latter, which is the alternate form... explain
-            most_matches = matches
-            corr_a = a
-
-    if corr_a == None:
-        return None
-    else:
-        return corr_a['href'][1:] # Removes the '#' at the start of the id
-
-
-
 def add_mon_info(df_index):
-    """  """
+    """ Adds the extra data found in each pokemon's page on Pokemon DB """
 
     global mons_df
 
-    # Can just grab the same page as the previous, maybe????
     url = find_pokemon_page(*mons_df.loc[df_index, ["name", "has_alt_form"]])
     mon_page = get_soup(url)
 
@@ -290,33 +274,31 @@ def add_mon_info(df_index):
     if mons_df.loc[df_index, "has_alt_form"]:
         id_ = find_active_id(mon_page, *mons_df.loc[df_index, ["name", "is_alt_form"]])
         if id_ == None: 
-            print(mons_df.loc[df_index, "name"])
-            print("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
-        if mons_df.loc[df_index, "is_alt_form"]:
-            if int(id_.split('-')[-1]) < 10000:
-                print(mons_df.loc[df_index, "name"])
-                print("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
+            print(f"ERROR: Couldn't find {mons_df.loc[df_index, "name"]}'s tab id")
+            return None
+        
+        # Alternate Forms have tab id's starting from 10000
+        if mons_df.loc[df_index, "is_alt_form"] and int(id_.split('-')[-1]) < 10000:
+            print(f"ERROR: {mons_df.loc[df_index, "name"]}'s tab id is wrong")
+            return None
                 
-
-
     mons_df.loc[df_index, "height_m"] = get_height(mon_page, id_)
     mons_df.loc[df_index, "weight_kg"] = get_weight(mon_page, id_)
     mons_df.loc[df_index, ["norm_abils", "hidd_abil"]] = get_abils(mon_page, id_)
-    mons_df.loc[df_index, "sprite"] = get_img(mon_page, df_index, id_)
-
+    mons_df.loc[df_index, "sprite"] = get_img(mon_page, id_)
+     
 ### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
 ### Tidying up the Naming Convention ###
 
 def pre_clean_up_names(mons_df):
-
     """
-    Problem Pokemon:
+    Cleans up problem pokemon:
      - Megas, Primals, (GMax's), Regional Forms
      - Partner Pikachu & Eevee
-     - Mr. Mime, Galarian Mr. Mime, Mr. Rime, Mime Jr.
-     - DARMANITANS
-     ADD MORE!!!
+     - Mr. Mime line
+     - Darmanitan line
+     - Rotom's, Kyurem's & Necrozma's
     """
 
     for i in range(len(mons_df)):
@@ -350,6 +332,10 @@ def pre_clean_up_names(mons_df):
     return mons_df
 
 def post_clean_up_names(mons_df):
+    """
+    Cleans up problem pokemon:
+     - Ash-Greninja
+    """
 
     for i in range(len(mons_df)):
         name = mons_df.loc[i, "name"]
@@ -389,44 +375,33 @@ mon_headers = [
     "sprite"
 ]
 
+# Create the DataFrame
 mons_df = pd.DataFrame(columns = mon_headers)
+
+# Get the name and other simple data for each pokemon
 page_all = get_soup(f"{POKEMONDB}all")
 mons_df = parse_pokedex(page_all)
+
+# Cleans up most of the names (bar some that cause trouble for other functions)
 mons_df = pre_clean_up_names(mons_df)
 
+# Fetches each pokemon's page and extracts extra information
 for i in range(len(mons_df)):
-# for i in range(5):
-    # print(i)
-
     if (i % 100) == 0:
         print(i)
 
     add_mon_info(i)
 
+# Cleans up the remaining names
 mons_df = post_clean_up_names(mons_df)
 
 mons_df.to_csv("pokedex.csv", index = False)
 
 
 
-# for image in images:
-
-#     img = Image.open(f"images/{image}")
-
-#     img_dims = list(img.size)
-#     scale = min((DIMS[i] - 30) / img_dims[i] for i in range(2))
-#     img_dims[0] = int(img_dims[0] * scale // 1)
-#     img_dims[1] = int(img_dims[1] * scale // 1)
-
-#     new_img = Image.new('RGB', (DIMS[0], DIMS[1]), color = "white")
-#     img = img.resize(img_dims) 
-
-#     offset = [int((DIMS[i] - img_dims[i]) // 2 ) for i in range(2)]
-
-#     new_img.paste(img, offset)
-#     new_img.save(f"scaled_images/{image}", optimize=True, quality=75)
 
 
+### IF POSSIBLE
 #### MAKE THE BACKGROUND TRANSPARENT
 ### POKEMON HAVE BLACK LINES AROUND THEM, ALWAYS, MAKES IT NICE
 
@@ -451,25 +426,4 @@ mons_df.to_csv("pokedex.csv", index = False)
 #     img.save(f"transparent_images/{image}", optimize=True, quality=75)
 
 
-
-
-
-# for i in range(len(mons_df)):
-#     # print(i)
-
-#     name = mons_df.loc[i, "name"].replace(' ', '-')
-
-#     url = BULBAPEDIA + f"{i+1:03d}{name}" + ".png"
-#     print(url)
-
-#     soup = get_soup(url)
-
-#     if soup == None:
-#         print(name)
-
-
-
-# mons_df2 = pd.read_csv("new_pokedex2.csv")
-# mons_df = clean_up_names(mons_df)
-# print(mons_df)
 
