@@ -14,58 +14,42 @@ import time
 import os
 
 # Import other files
-from pokemon import fetch_pokemons, new_fetch_pokemons
+from pokemon import new_fetch_pokemons
 
 ### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
-# Initiates the session globally
-session = requests.Session()
-# UPDATE SESSIONS HEADERS !!!! ????
-
 ### Scraping for Information ###
 
+# Initiates the session globally
+session = requests.Session()
+
 def scrape_image(filename, url, DIMS):
-    """  """
+    """ Fetches the sprite image and resizes to use in Notion """
 
     r = session.get(url, timeout = 30)
+
     if r.ok:
         with open(filename, "wb") as f:
             f.write(r.content)
 
         # Scale the image to fit for notion
-        img = Image.open(filename)
+        img = Image.open(filename).convert("RGBA")
         
         img_dims = list(img.size)
         scale = min((DIMS[i] - 30) / img_dims[i] for i in range(2))
         img_dims[0] = int(img_dims[0] * scale // 1)
         img_dims[1] = int(img_dims[1] * scale // 1)
     
-        new_img = Image.new('RGB', (DIMS[0], DIMS[1]), color = "white")
+        background = Image.new('RGB', (DIMS[0], DIMS[1]), color = "white")
         img = img.resize(img_dims) 
     
         offset = [int((DIMS[i] - img_dims[i]) // 2 ) for i in range(2)]
     
-        new_img.paste(img, offset)
-        new_img.save(filename, optimize=True, quality=75)
-    
+        background.paste(img, offset, img)
+        background.save(filename, optimize=True, quality=75)
+
+    # Prevents spamming requests
     time.sleep(0.2)
-
-### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
-
-### Functions ###
-
-def list_to_string(arr):
-    """ Converts an array to a comma-separated string for Notion's 'Multi-Select' category """
-    string = arr[0]
-    for i in range(1, len(arr)):
-
-        # If the element is 'nan', then ignore
-        if type(arr[i]) == float: 
-            continue 
-
-        string += ", " + arr[i]
-
-    return string
 
 ### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
@@ -94,10 +78,16 @@ notion_headers = [
 
 
 os.makedirs("images/", exist_ok=True)
-mons_df = pd.read_csv("new_pokedex2.csv")
+mons_df = pd.read_csv("pokedex.csv")
 DIMS = [1500, 600]
-# for i in range(len(mons_df)):
-for i in range(10):
+for i in range(len(mons_df)):
+    break
+# for i in range(430, 450):
+    # print(i)
+
+    if i % 100 == 0:
+        print(i)
+
     image_url = mons_df.loc[i, "sprite"]
 
     # CHECK IF is.nan
@@ -110,11 +100,19 @@ notion_df = pd.DataFrame(columns = notion_headers)
 
 # Add every pokemon to the DataFrame
 for i in range(len(pokemons)):
+    print(i)
     mon = pokemons[i]
 
-    mon_type = list_to_string([mon.type1, mon.type2])
-    mon_abs = list_to_string(mon.comm_abs)
+    mon_type = str(mon.type1)
+    if mon_type[1] != None:
+        mon_type += ',' + str(mon.type2)
+
+    mon_abs = None
+    print(mon.comm_abs)
+    if mon.comm_abs != None:
+        mon_abs = ','.join(mon.comm_abs)
     mon_sprite = f"https://raw.githubusercontent.com/EchoFia/Learning-Through-Projects/refs/heads/main/Python/Pokemon/images/img{i}.png"
+
 
     pokemon_data = [
         mon.nat_index,
