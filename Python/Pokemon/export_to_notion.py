@@ -5,16 +5,14 @@
 ### Import Modules ###
 
 # Import standard modules
-import numpy as np
 import pandas as pd
-import math
 import requests
 from PIL import Image
 import time
 import os
 
 # Import other files
-from pokemon import new_fetch_pokemons
+from pokemon import fetch_pokemons
 
 ### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
@@ -57,7 +55,7 @@ def scrape_image(filename, url, DIMS):
 
 # Retrieve all the information on each pokemon
 # pokemons = fetch_pokemons()
-pokemons = new_fetch_pokemons()
+pokemons = fetch_pokemons()
 
 notion_headers = [
     "National Dex Number", 
@@ -101,7 +99,6 @@ notion_df = pd.DataFrame(columns = notion_headers)
 
 # Add every pokemon to the DataFrame
 for i in range(len(pokemons)):
-    print(i)
     mon = pokemons[i]
 
     mon_type = str(mon.type1)
@@ -109,9 +106,9 @@ for i in range(len(pokemons)):
         mon_type += ',' + str(mon.type2)
 
     mon_abs = None
-    print(mon.comm_abs)
     if mon.comm_abs != None:
         mon_abs = ','.join(mon.comm_abs)
+
     mon_sprite = f"https://raw.githubusercontent.com/EchoFia/Learning-Through-Projects/refs/heads/main/Python/Pokemon/images/img{i}.png"
 
     mon_tags = []

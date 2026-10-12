@@ -12,16 +12,9 @@ Scrapes for the pokemon information at the following sites:
 
 # Import standard modules
 import time
-import re
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
-import numpy as np
-import os
-from PIL import Image
-
-# Import other files
-from pokemon import MAX_DEX
 
 ### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
@@ -31,7 +24,6 @@ POKEMONDB = "https://pokemondb.net/pokedex/"
 
 # Initiates the session globally
 session = requests.Session()
-# UPDATE SESSIONS HEADERS !!!! ????
 
 def get_soup(url, delay = 0.4, retries = 3):
     """ Fetch a URL politely and return parsed HTML (None if HTML doesn't exist) """
@@ -125,7 +117,7 @@ def parse_pokedex(soup):
         # Format the 'types'
         types = texts[2].split(' ')
         if len(types) == 1: # If mono-type
-            types.append(np.nan)
+            types.append(None)
 
         # Check for Mega
         is_mega = False

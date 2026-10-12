@@ -78,7 +78,7 @@ def get_gen(number):
             return gen
     raise ValueError(f"national dex number {number} beyond known generations")
 
-def new_fetch_pokemons():
+def fetch_pokemons():
 
     pokemons = []
 
@@ -109,6 +109,14 @@ def new_fetch_pokemons():
 
         gen = get_gen(args[0])
         args.insert(1, gen)
+
+        # Change any NaN to None - REDO
+        for j in range(len(args)):
+            try:
+                if pd.isna(args[j]):
+                    args[j] = None
+            except ValueError:
+                pass
 
         pokemons.append(Pokemon(*args))
 
