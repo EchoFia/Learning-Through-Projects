@@ -5,16 +5,14 @@
 ### Import Modules ###
 
 # Import standard modules
-import numpy as np
 import pandas as pd
-import math
 import requests
 from PIL import Image
 import time
 import os
 
 # Import other files
-from pokemon import new_fetch_pokemons
+from pokemon import fetch_pokemons
 
 ### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
@@ -57,7 +55,7 @@ def scrape_image(filename, url, DIMS):
 
 # Retrieve all the information on each pokemon
 # pokemons = fetch_pokemons()
-pokemons = new_fetch_pokemons()
+pokemons = fetch_pokemons()
 
 notion_headers = [
     "National Dex Number", 
@@ -73,7 +71,8 @@ notion_headers = [
     "Height", 
     "Weight", 
     "Description", 
-    "Sprite"
+    "Sprite",
+    "Tags"
 ]
 
 
@@ -100,7 +99,6 @@ notion_df = pd.DataFrame(columns = notion_headers)
 
 # Add every pokemon to the DataFrame
 for i in range(len(pokemons)):
-    print(i)
     mon = pokemons[i]
 
     mon_type = str(mon.type1)
@@ -108,11 +106,19 @@ for i in range(len(pokemons)):
         mon_type += ',' + str(mon.type2)
 
     mon_abs = None
-    print(mon.comm_abs)
     if mon.comm_abs != None:
         mon_abs = ','.join(mon.comm_abs)
+
     mon_sprite = f"https://raw.githubusercontent.com/EchoFia/Learning-Through-Projects/refs/heads/main/Python/Pokemon/images/img{i}.png"
 
+    mon_tags = []
+    if mon.is_mega: mon_tags.append("Mega")
+    if mon.is_alolan: mon_tags.append("Alolan")
+    if mon.is_galarian: mon_tags.append("Galarian")
+    if mon.is_hisuian: mon_tags.append("Hisuian")
+    if mon.is_paldean: mon_tags.append("Paldean")
+    if mon.is_alt_form: mon_tags.append("Alternate Form")
+    mon_tags = ','.join(mon_tags)
 
     pokemon_data = [
         mon.nat_index,
@@ -130,7 +136,8 @@ for i in range(len(pokemons)):
         mon.height,
         mon.weight,
         mon.desc,
-        mon_sprite
+        mon_sprite,
+        mon_tags
     ]
 
     # Append the new 'pokemon_data' to the DataFrame
