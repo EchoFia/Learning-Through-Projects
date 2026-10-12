@@ -8,9 +8,7 @@ C++ Project No. 1: Building a Simplified Renderer
 
 # Overview of Project
 
--
-
-NOTE: SHAll use their tga library
+- To begin with, we shall learn a few simple methods of drawing lines (Bresenham’s line algorithm) and triangles (scanline rendering & bounding box methods with barycentric co-ordinates). We shall use the tutorial’s `tgaimage` library to create a `.tga` output file.
 
 ## New Concepts
 
@@ -41,3 +39,4 @@ NOTE: SHAll use their tga library
 
 - `constexpr` will evaluate a variable before compilation, useful for fixed values like `minsPerHour`
 - `#pragma once` makes sure that the compiler only includes the current header once
+- `#pragma omp parallel <func>` causes the next `<func>` to be run in parallel
