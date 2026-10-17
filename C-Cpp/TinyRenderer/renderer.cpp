@@ -20,6 +20,8 @@ struct PhongShader : IShader {
     /* Light direction in eye co-ordinates */
     vec4 l;
     vec2 varying_uv[3];
+    vec4 varying_nrm[3];
+    vec4 tri[3];
 
     PhongShader(const vec3 light, const Model &m) : model(m) {
         /* Transforms the light vector to view co-ordinates */
@@ -32,14 +34,15 @@ struct PhongShader : IShader {
         // vec3 v = model.vert(face, vert);
         // vec4 gl_Position = ModelView * vec4{v.x, v.y, v.z, 1.};
 
-        /* Vertex in eye co-ordinates */
-        // tri[vert] = gl_Position.xyz();
-
         // vec3 n = model.norm(face, vert);
         // tri_norms[vert] = (ModelView.invert_transpose() * vec4{n.x, n.y, n.z, 0.}).xyz();
 
         varying_uv[vert] = model.uv(face, vert);
+        varying_nrm[vert] = ModelView.invert_transpose() * model.norm(face, vert);
         vec4 gl_Position = ModelView * model.vert(face, vert);
+
+        /* Vertex in eye co-ordinates */
+        tri[vert] = gl_Position;
 
         /* Vertex in clip co-ordinates */
         return Perspective * gl_Position;
@@ -52,7 +55,16 @@ struct PhongShader : IShader {
         //                     tri_norms[2] * bar[2]); 
 
         vec2 uv = varying_uv[0] * bar[0] + varying_uv[1] * bar[1] + varying_uv[2] * bar[2];
-        vec4 n = normalised(ModelView.invert_transpose() * model.norm(uv));
+
+        mat<2, 4> E = { tri[1]-tri[0], tri[2]-tri[0] };
+        mat<2, 2> U = { varying_uv[1]-varying_uv[0], varying_uv[2]-varying_uv[0] };
+        mat<2, 4> T = U.invert() * E;
+        mat<4, 4> D = {normalised(T[0]),  // tangent vector
+                      normalised(T[1]),  // bitangent vector
+                      normalised(varying_nrm[0]*bar[0] + varying_nrm[1]*bar[1] + varying_nrm[2]*bar[2]), // interpolated normal
+                      {0,0,0,1}}; // Darboux frame
+
+        vec4 n = normalised(D.transpose() * model.norm(uv));
         vec4 r = normalised(n * (n * l) * 2 - l);
 
         double ambient = .3;
