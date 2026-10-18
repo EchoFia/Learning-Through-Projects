@@ -1,23 +1,22 @@
 /* Import Libraries */
 	
-// #include <cstdlib>
 #include "our_gl.h"
 #include "model.h"
 #include <sys/stat.h>
-#include <iostream>
-// #include <string>
 
 /* Initiate Global Variables */
 extern mat<4,4> ModelView, Viewport, Perspective;
 extern std::vector<double> zbuffer;
 
-const int MIN_DARK = 80;
+constexpr int MIN_DARK = 80;
 const std::string OUTPUT_DIR = "renders";
 const char* C_OUTPUT_DIR = OUTPUT_DIR.c_str();
 
 /* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
-/* Shadow Mapping */
+/* =-= Shaders =-= */
+
+/* For shadow mapping */
 struct BlankShader : IShader {
     const Model &model;
 
@@ -35,15 +34,17 @@ struct BlankShader : IShader {
 
 struct PhongShader : IShader {
     const Model &model;
-    // TGAColor color = {};
-    /* Triangle in eye co-ordinates */
-    // vec3 tri[3];
-    /* Triangle norms in eye co-ordinates */
-    // vec3 tri_norms[3];
+
     /* Light direction in eye co-ordinates */
     vec4 l;
+
+    /* Texture Values */
     vec2 varying_uv[3];
+
+    /* Triangle norms in eye co-ordinates */
     vec4 varying_nrm[3];
+
+    /* Triangle in eye co-ordinates */
     vec4 tri[3];
 
     PhongShader(const vec3 light, const Model &m) : model(m) {
@@ -52,13 +53,6 @@ struct PhongShader : IShader {
     }
 
     virtual vec4 vertex(const int face, const int vert) {
-        /* Current vertext in object co-ordinates */
-        // vec3 v = model.vert(face, vert);
-        // vec4 gl_Position = ModelView * vec4{v.x, v.y, v.z, 1.};
-
-        // vec3 n = model.norm(face, vert);
-        // tri_norms[vert] = (ModelView.invert_transpose() * vec4{n.x, n.y, n.z, 0.}).xyz();
-
         varying_uv[vert] = model.uv(face, vert);
         varying_nrm[vert] = ModelView.invert_transpose() * model.norm(face, vert);
         vec4 gl_Position = ModelView * model.vert(face, vert);
@@ -71,15 +65,10 @@ struct PhongShader : IShader {
     }
 
     virtual std::pair<bool, TGAColor> fragment(const vec3 bar) const {
-        // TGAColor gl_FragColor = { 255, 255, 255, 255 };
-        // vec3 n = normalised(tri_norms[0] * bar[0] +
-        //                     tri_norms[1] * bar[1] +
-        //                     tri_norms[2] * bar[2]); 
-
         vec2 uv = varying_uv[0] * bar[0] + varying_uv[1] * bar[1] + varying_uv[2] * bar[2];
 
-        mat<2, 4> E = { tri[1]-tri[0], tri[2]-tri[0] };
-        mat<2, 2> U = { varying_uv[1]-varying_uv[0], varying_uv[2]-varying_uv[0] };
+        mat<2, 4> E = { tri[1] - tri[0], tri[2] - tri[0] };
+        mat<2, 2> U = { varying_uv[1] - varying_uv[0], varying_uv[2] - varying_uv[0] };
         mat<2, 4> T = U.invert() * E;
         mat<4, 4> D = {normalised(T[0]),  // tangent vector
                       normalised(T[1]),  // bitangent vector
@@ -93,7 +82,6 @@ struct PhongShader : IShader {
         double diff = 1. * std::max(0., n * l);
         /* Specular exponent is set to 35 here */
         /* Camera lies on z-axis, hence r.z */
-        // double spec = std::pow(std::max(r.z, 0.), 35);
         double spec = (.5 + 2.*sample2D(model.specular(), uv)[0]/255.) * std::pow(std::max(r.z, 0.), 35);
         TGAColor gl_FragColor = sample2D(model.diffuse(), uv);
 
@@ -105,28 +93,51 @@ struct PhongShader : IShader {
     }
 };
 
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* =-= Printing/Exporting =-= */
+
+/* Exports the zbuffer as a .tga image */
 void drop_zbuffer(std::string filename, std::vector<double> &zbuffer, int width, int height) {
+
+    /* Initialise the image object */
     TGAImage zimg(width, height, TGAImage::GRAYSCALE, {0, 0, 0, 0});
+
     double min_z = +1000;
     double max_z = -1000;
+
+    /* Find the minimum and maximum depths, ignoring the background */
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             double z = zbuffer[x + y * width];
+
+            /* Background is set to -1000 */
             if (z < -100) continue;
+
             min_z = std::min(z, min_z);
             max_z = std::max(z, max_z);
         }
     }
+
+    /* Scale zbuffer to go from 0 to 255 */
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             double z = zbuffer[x + y * width];
+            
+            /* Background is set to -1000 */
             if (z < -100) continue;
+
             z = (z - min_z)/(max_z - min_z) * 255;
             zimg.set(x, y, {static_cast<uint8_t>(z), 255, 255, 255});
         }
     }
+
     zimg.write_tga_file(OUTPUT_DIR + '/' + filename);
 }
+
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* =-= Main =-= */
 
 int main(int argc, char** argv) {
     if (argc < 2) {
@@ -180,8 +191,8 @@ int main(int argc, char** argv) {
         }
     }
 
-    framebuffer.write_tga_file(OUTPUT_DIR + '/' + "framebuffer.tga");
-    drop_zbuffer("zbuffer1.tga", zbuffer, width, height);
+    framebuffer.write_tga_file(OUTPUT_DIR + "/no_shadow.tga");
+    drop_zbuffer("zbuffer_camera.tga", zbuffer, width, height);
 
     std::vector<bool> mask(width * height, false);
     std::vector<double> zbuffer_copy = zbuffer;
@@ -212,10 +223,10 @@ int main(int argc, char** argv) {
                 rasterise(clip, shader, trash);
             }
         }
-        trash.write_tga_file(OUTPUT_DIR + '/' + "shadowmap.tga");
+        trash.write_tga_file(OUTPUT_DIR + "/shadowmap.tga");
     }
 
-    drop_zbuffer("zbuffer2.tga", zbuffer, shadow_w, shadow_h);
+    drop_zbuffer("zbuffer_light.tga", zbuffer, shadow_w, shadow_h);
 
     mat<4,4> N = Viewport * Perspective * ModelView;
 
@@ -243,7 +254,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    maskimg.write_tga_file(OUTPUT_DIR + '/' + "mask.tga");
+    maskimg.write_tga_file(OUTPUT_DIR + "/mask.tga");
 
     /* Apply the mask to the image */
     for (int x = 0; x < width; x++) {
@@ -260,7 +271,7 @@ int main(int argc, char** argv) {
                                     255 });
         }
     }
-    framebuffer.write_tga_file(OUTPUT_DIR + '/' + "shadow.tga");
+    framebuffer.write_tga_file(OUTPUT_DIR + "/shadow.tga");
 
     return 0;
 }
