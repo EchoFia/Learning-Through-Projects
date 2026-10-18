@@ -52,6 +52,7 @@ C++ Project No. 1: Building a Simplified Renderer
 - `cstring` adds functionality to work on arrays and C-style strings (an array of `char`'s)
 - `fstream` adds functionality for file handling
 - `sstream` adds functionality for handling strings, such as those from user input (`cin`)
+- `sys/stat.h` includes functionality to make directories
 
 # New Coding Terminology
 
@@ -62,7 +63,21 @@ C++ Project No. 1: Building a Simplified Renderer
 - Use `template <typename T>` will allow for creating functions, classes, etc… with a designated type `T`
 - Using `template` with non-type arguments (i.e. `template <int X>` generates the template during compiling, and thus can be used for fixed values
 - `struct B : A` uses a separate `struct A` as an initialiser for `B` (i.e. to initialise variables and functions)
+- To convert `std::string s "abc"` to a C-type string, use `const char* cs = s.c_str()` or `char* cs = s.data();`
 
 - `constexpr` will evaluate a variable before compilation, useful for fixed values like `minsPerHour`
 - `#pragma once` makes sure that the compiler only includes the current header once
 - `#pragma omp parallel <func>` causes the next `<func>` to be run in parallel
+- `mkdir(filename, mode)` creates a directory, returning `1` if an error arose, and storing said error to `errno`
+
+```cpp
+/* File Handling */
+td::ifstream in;
+in.open(filename, std::ifstream::in);
+if (in.fail()) return;
+std::string line;
+while (!in.eof()) {
+    std::getline(in, line);
+    ...
+}
+```

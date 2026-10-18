@@ -70,10 +70,10 @@ struct PhongShader : IShader {
         mat<2, 4> E = { tri[1] - tri[0], tri[2] - tri[0] };
         mat<2, 2> U = { varying_uv[1] - varying_uv[0], varying_uv[2] - varying_uv[0] };
         mat<2, 4> T = U.invert() * E;
-        mat<4, 4> D = {normalised(T[0]),  // tangent vector
-                      normalised(T[1]),  // bitangent vector
-                      normalised(varying_nrm[0]*bar[0] + varying_nrm[1]*bar[1] + varying_nrm[2]*bar[2]), // interpolated normal
-                      {0,0,0,1}}; // Darboux frame
+        mat<4, 4> D = {normalised(T[0]),  // Tangent vector
+                      normalised(T[1]),  // Bitangent vector
+                      normalised(varying_nrm[0] * bar[0] + varying_nrm[1] * bar[1] + varying_nrm[2] * bar[2]), // Interpolated normal
+                      {0, 0, 0, 1}}; // Darboux frame
 
         vec4 n = normalised(D.transpose() * model.norm(uv));
         vec4 r = normalised(n * (n * l) * 2 - l);
@@ -82,7 +82,7 @@ struct PhongShader : IShader {
         double diff = 1. * std::max(0., n * l);
         /* Specular exponent is set to 35 here */
         /* Camera lies on z-axis, hence r.z */
-        double spec = (.5 + 2.*sample2D(model.specular(), uv)[0]/255.) * std::pow(std::max(r.z, 0.), 35);
+        double spec = (.5 + 2. * sample2D(model.specular(), uv)[0] / 255.) * std::pow(std::max(r.z, 0.), 35);
         TGAColor gl_FragColor = sample2D(model.diffuse(), uv);
 
         for (int channel : { 0, 1, 2 }) {
@@ -145,12 +145,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // if (mkdir(OUTPUT_DIR, 0777) == -1) {
-    //     std::cerr << "Error :  " << strerror(errno) << std::endl;
-    // }
     int check = mkdir(C_OUTPUT_DIR, 0777);
-    if (check) {
-        std::cerr << "Unsuccessful in creating directory - May already exist" << std::endl;
+    if (errno != EEXIST && check) {
+        std::cerr << "ERROR: " << strerror(errno) << std::endl;
+        return 1;
     }
 
     /* Define the image size */
@@ -170,7 +168,7 @@ int main(int argc, char** argv) {
     /* Initial rendering pass with no shadow-mapping */
     lookat(eye, centre, up);
     init_perspective(norm(eye - centre));
-    init_viewport(width/16, height/16, width*7/8, height*7/8);
+    init_viewport(width / 16, height / 16, width * 7 / 8, height * 7 / 8);
     init_zbuffer(width, height);
 
     TGAImage framebuffer(width, height, TGAImage::RGB, {177, 195, 209, 255});
@@ -191,19 +189,18 @@ int main(int argc, char** argv) {
         }
     }
 
-    framebuffer.write_tga_file(OUTPUT_DIR + "/no_shadow.tga");
+    framebuffer.write_tga_file(OUTPUT_DIR + "/without_shadow.tga");
     drop_zbuffer("zbuffer_camera.tga", zbuffer, width, height);
 
     std::vector<bool> mask(width * height, false);
     std::vector<double> zbuffer_copy = zbuffer;
     mat<4,4> M = (Viewport * Perspective * ModelView).invert();
 
-    /* Shadow rendering - New set of local variables */
-    // WHY IS IT IN ITS OWN LOCAL THING.... WHAT DOESN'T GET SAVED GLOBALLY?
+    /* Shadow rendering */
     {
         lookat(light, centre, up);
-        init_perspective(norm(eye-centre));
-        init_viewport(shadow_w/16, shadow_h/16, shadow_w*7/8, shadow_h*7/8);
+        init_perspective(norm(eye - centre));
+        init_viewport(shadow_w / 16, shadow_h / 16, shadow_w * 7 / 8, shadow_h * 7 / 8);
         init_zbuffer(shadow_w, shadow_h);
 
         TGAImage trash(shadow_w, shadow_h, TGAImage::RGB, {177, 195, 209, 255});
@@ -238,9 +235,10 @@ int main(int argc, char** argv) {
             vec4 fragment = M * vec4{static_cast<double>(x), static_cast<double>(y), zbuffer_copy[x + y * width], 1.};
             vec4 q = N * fragment;
             vec3 p = q.xyz() / q.w;
-            bool lit =  (fragment.z < -100 ||                                   // it's the background or
-                        (p.x < 0 || p.x >= shadow_w || p.y < 0 || p.y >= shadow_h) ||   // it is out of bounds of the shadow buffer
-                        (p.z > zbuffer[int(p.x) + int(p.y) * shadow_w] - .08));  // it is visible
+            /* Check if it's the background, out of bounds of the shadow buffer, or is visible */
+            bool lit =  (fragment.z < -100 ||
+                        (p.x < 0 || p.x >= shadow_w || p.y < 0 || p.y >= shadow_h) ||
+                        (p.z > zbuffer[int(p.x) + int(p.y) * shadow_w] - .03));
             mask[x + y * width] = lit;
         }
     }
@@ -271,7 +269,7 @@ int main(int argc, char** argv) {
                                     255 });
         }
     }
-    framebuffer.write_tga_file(OUTPUT_DIR + "/shadow.tga");
+    framebuffer.write_tga_file(OUTPUT_DIR + "/with_shadow.tga");
 
     return 0;
 }
