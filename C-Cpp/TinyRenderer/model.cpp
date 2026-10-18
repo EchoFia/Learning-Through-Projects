@@ -1,6 +1,11 @@
+/* Import Libraries */
 #include <fstream>
 #include <sstream>
 #include "model.h"
+
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* =-= File Handling =-= */
 
 Model::Model(const std::string filename) {
     std::ifstream in;
@@ -58,6 +63,10 @@ Model::Model(const std::string filename) {
 
 int Model::nverts() const { return verts.size(); }
 int Model::nfaces() const { return facet_vrt.size()/3; }
+
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* =-= Indexing =-= */
 
 vec4 Model::vert(const int i) const {
     return verts[i];

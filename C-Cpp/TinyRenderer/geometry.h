@@ -1,15 +1,19 @@
+/* Import Libraries */
 #pragma once
 #include <cmath>
 #include <cassert>
 #include <iostream>
 
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* =-= Vectors =-= */
+
+/* Vector definition */
 template<int n> struct vec {
     double data[n] = {0};
     double& operator[](const int i)       { assert(i >= 0 && i < n); return data[i]; }
     double  operator[](const int i) const { assert(i >= 0 && i < n); return data[i]; }
 };
-
-/* Vector operations */
 
 /* Vector dot product */
 template<int n> double operator*(const vec<n>& a, const vec<n>& b) {
@@ -102,7 +106,9 @@ inline vec3 cross(const vec3 &v1, const vec3 &v2) {
     return {v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x};
 }
 
-/* Matrices */
+/* =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+/* =-= Matrices =-= */
 
 template<int n> struct dt; // WHAT DOES THIS DO???
 
@@ -161,9 +167,6 @@ template<int R1, int C1, int C2> mat<R1,C2> operator*(const mat<R1,C1>& A, const
             for (int k=C1; k--; result[i][j]+=A[i][k]*B[k][j]);
     return result;
 }
-
-
-
 
 template<int nrows,int ncols>mat<nrows,ncols> operator*(const mat<nrows,ncols>& lhs, const double& val) {
     mat<nrows,ncols> result;
