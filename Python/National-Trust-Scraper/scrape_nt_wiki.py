@@ -54,12 +54,12 @@ def get_soup(url, delay = 0.4, retries = 3):
 
 ### Parsing the National Trust Wiki ###
 
-NT_WIKI = "https://en.wikipedia.org/wiki/List_of_National_Trust_properties_in_England"
+ENG_WIKI = "https://en.wikipedia.org/wiki/List_of_National_Trust_properties_in_England"
+NI_WIKI = "https://en.wikipedia.org/wiki/List_of_National_Trust_properties_in_Northern_Ireland"
+WAL_WIKI = "https://en.wikipedia.org/wiki/List_of_National_Trust_properties_in_Wales"
+SCOT_WIKI = ""
 
-### ONLY INCLUDES ENGLISH ONES, NEED NI AND WALES (SCOTLAND??)
-### ADD COUNTRY WHEN DOI NG EACH 
-
-def parse_nt_list(soup):
+def parse_eng_list(soup):
     """  """
 
     nt_dict = {"Name": [], "County": []}
@@ -74,7 +74,6 @@ def parse_nt_list(soup):
             continue
 
         if county == "See also":
-            print("A")
             break
 
         # print(county)
@@ -84,6 +83,49 @@ def parse_nt_list(soup):
 
             nt_dict["Name"].append(li.get_text())
             nt_dict["County"].append(county)
+
+    nt_dict["Country"] = ["England"] * len(nt_dict["Name"])
+
+    return nt_dict
+
+def parse_wal_list(soup):
+    """ """
+
+    nt_dict = {"Name": [], "County": [], "Image": []}
+
+    for sec in soup.find_all("section"):
+
+        county = sec.get_text().split('\n')[0].replace('[edit]', '')
+
+        if county == "External links":
+            break
+
+        trs = sec.find_all("tr")
+        # print(len(trs))
+
+        for tr in trs:
+
+            header_th = tr.find_all("th")
+
+            if header_th == None or header_th == []:
+                continue
+
+            header_th = header_th[0]
+
+            if header_th.get_text() == "Site Name":
+                continue
+
+            image_url = tr.find("a", class_ = "mw-file-description")
+            if image_url != None:
+                nt_dict["Image"].append(image_url["href"])
+            else:
+                nt_dict["Image"].append(None)
+
+
+            nt_dict["Name"].append(header_th.get_text())
+            nt_dict["County"].append(county)
+
+    nt_dict["Country"] = ["Wales"] * len(nt_dict["Name"])
 
     return nt_dict
 
@@ -122,21 +164,22 @@ def sorter(unsorted_list, headers):
 
     print(sorted_list)
 
-sorter(counties[:5], regions)
-
 ### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
 ### Main ###
 
-# page_list = get_soup(NT_WIKI)
-# nt_dict = parse_nt_list(page_list)
-# nt_df = pd.DataFrame(nt_dict)
-# nt_df.to_csv("initial.csv", index = False)
+page_list = get_soup(WAL_WIKI)
+# nt_dict = parse_eng_list(page_list)
+nt_dict = parse_wal_list(page_list)
+nt_df = pd.DataFrame(nt_dict)
+nt_df.to_csv("initial.csv", index = False)
 
 
 
 # nt_df = pd.read_csv("initial.csv")
 # print(nt_df)
+
+# sorter(counties[:5], regions)
 
 
 
