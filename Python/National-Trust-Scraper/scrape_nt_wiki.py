@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import os
 import random
+import re
 
 from selenium import webdriver
 
@@ -24,7 +25,8 @@ from selenium import webdriver
 ### Scraping the Information ###
 
 # Initiates the session globally
-session = requests.Session()
+# session = requests.Session()
+# session = None
 
 # Obtaining the user-agent
 # driver = webdriver.Chrome()
@@ -33,48 +35,61 @@ session = requests.Session()
 
 # useragent = "Mozilla/5.0 (Tahoe; Mac OS 26_6_2)" # AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Safari/605.1.15"
 
-useragent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0"
+# useragent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0"
 
 
-# from fake_useragent import UserAgent
+# from getuseragent import UserAgent
+# useragent = UserAgent("all")
+# theuseragent = useragent.Random()
 
-from getuseragent import UserAgent
-useragent = UserAgent("all")
-theuseragent = useragent.Random()
+def init_session():
+    # driver = webdriver.Chrome()
+    # useragent = driver.execute_script("return navigator.userAgent")
+    # driver.quit()
 
-def get_browser_headers(useragent):
-    return {
+    global session
+    # Initiates the session globally
+    session = requests.Session()
+
+    useragent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0"
+
+    # print(useragent)
+
+    session_headers = {
         'User-Agent': useragent,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Cache-Control': 'max-age=0',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip', #, deflate',
+        # 'Connection': 'keep-alive',
     }
+
+    session.headers.update(session_headers)
+
+# def get_browser_headers(useragent):
+#     return {
+#         'User-Agent': useragent,
+#         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+#         'Accept-Language': 'en-US,en;q=0.9',
+#         'Accept-Encoding': 'gzip, deflate, br',
+#         'Connection': 'keep-alive',
+#         'Upgrade-Insecure-Requests': '1',
+#         'Sec-Fetch-Dest': 'document',
+#         'Sec-Fetch-Mode': 'navigate',
+#         'Sec-Fetch-Site': 'none',
+#         'Cache-Control': 'max-age=0',
+#     }
 
 # session_headers = {'accept-encoding': 'gzip', 'User-Agent': useragent}
 
 
-session_headers = {
-    'User-Agent': theuseragent,
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.5',
-    'Accept-Encoding': 'gzip', #, deflate',
-    # 'Connection': 'keep-alive',
-}
-
-print(theuseragent)
+# print(theuseragent)
 
 # session_headers = get_browser_headers(theuseragent)
 
-session.headers.update(session_headers)
-
 def get_soup(url, delay = 0.4, retries = 3):
     """ Fetch a URL politely and return parsed HTML (None if HTML doesn't exist) """
+
+    
 
     for attempt in range(retries):
         time.sleep(delay)
@@ -99,6 +114,7 @@ def get_soup(url, delay = 0.4, retries = 3):
         if r.status_code == 429:
             print(f"ERROR 429: Sleeping for {r.headers["Retry-After"]} seconds")
             time.sleep(int(r.headers["Retry-After"]))
+            continue
         
         if r.status_code >= 500:
             time.sleep(2 ** attempt)
@@ -108,12 +124,11 @@ def get_soup(url, delay = 0.4, retries = 3):
 
         r.raise_for_status()
         return BeautifulSoup(r.text, "html.parser")
-    
-    raise RuntimeError(f"could not fetch {url}")
+
+    print(f"could not fetch {url}")
+    # raise RuntimeError(f"could not fetch {url}")
 
 def get_wiki_desc_and_img(url):
-    print(url)
-
     soup = get_soup(url)
 
     img_url = None
@@ -134,18 +149,12 @@ def get_wiki_desc_and_img(url):
                 if img_url[:4] == "http":
                     break
 
-    for p in soup.find_all("p")[:3]:
+    for p in soup.find_all("p"):
         desc = p.get_text().replace('\n', '')
-        if desc != "":
+        if desc != "" and desc[2] != "°":
             break
 
     return desc, img_url
-
-    
-# d, i = get_wiki_desc_and_img("https://en.wikipedia.org/wiki/Smithcombe,_Sharpenhoe_and_Sundon_Hills")
-# print(d)
-# print()
-# print(i)
 
 ### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
@@ -159,7 +168,7 @@ SCOT_WIKI = ""
 def parse_eng_list(soup):
     """  """
 
-    nt_dict = {"Name": [], "County": []}
+    nt_dict = {"Name": [], "County": [], "URL": []}
 
     # Each place is stored into <li> elements, separated by County into <ul> elements
     for ul in soup.find_all("section"):
@@ -180,6 +189,12 @@ def parse_eng_list(soup):
 
             nt_dict["Name"].append(li.get_text())
             nt_dict["County"].append(county)
+
+            a = li.find("a")
+            if a["href"].replace("?action=edit&redlink=1", "") != a["href"]:
+                nt_dict["URL"].append(None)
+            else:
+                nt_dict["URL"].append(a["href"])
 
     nt_dict["Country"] = ["England"] * len(nt_dict["Name"])
 
@@ -310,51 +325,91 @@ def sorter(unsorted_list, headers):
 
 INIT_FOLDER = "init_data/"
 
+def scrape_country_list(url, filename, parse_func):
+
+    if os.path.exists(filename):
+        return pd.read_csv(filename)
+
+    else:
+        soup = get_soup(url)
+        if soup == None:
+            time.sleep(random.uniform(0.5, 1.5))
+            return None
+        
+        nt_dict = parse_func(soup)
+        nt_df = pd.DataFrame(nt_dict)
+        nt_df.to_csv(filename, index = False)
+
+        time.sleep(random.uniform(0.5, 1.5))
+
+        return nt_df
+
 def main():
+
+    init_session()
 
     os.makedirs(INIT_FOLDER, exist_ok = True)
 
-    if not os.path.exists(INIT_FOLDER + "eng.csv"):
-        eng_soup = get_soup(ENG_WIKI)
-        if eng_soup != None:
-            eng_dict = parse_eng_list(eng_soup)
-            eng_df = pd.DataFrame(eng_dict)
-            eng_df.to_csv(INIT_FOLDER + "eng.csv", index = False)
+    eng_df = scrape_country_list(ENG_WIKI, INIT_FOLDER + "eng.csv", parse_eng_list)
+    wal_df = scrape_country_list(WAL_WIKI, INIT_FOLDER + "wal.csv", parse_wal_list)
+    ni_df = scrape_country_list(NI_WIKI, INIT_FOLDER + "ni.csv", parse_ni_list)
 
-    if not os.path.exists(INIT_FOLDER + "wal.csv"):
-        wal_soup = get_soup(WAL_WIKI)
-        if wal_soup != None:
-            wal_dict = parse_wal_list(wal_soup)
-            wal_df = pd.DataFrame(wal_dict)
-            wal_df.to_csv(INIT_FOLDER + "wal.csv", index = False)
+    if not os.path.exists("notion_nt_list.csv"):
+        if type(None) not in [type(eng_df), type(wal_df), type(ni_df)]:
+            notion_df = pd.concat([eng_df, wal_df, ni_df])
+            # Reorganises headers
+            notion_df = notion_df[[
+                "Name",
+                "County",
+                "Region",
+                "Country",
+                "URL",
+                "Image"
+            ]]
 
-    if not os.path.exists(INIT_FOLDER + "ni.csv"):
-        ni_soup = get_soup(NI_WIKI)
-        if ni_soup != None:
-            ni_dict = parse_wal_list(ni_soup)
-            ni_df = pd.DataFrame(ni_dict)
-            ni_df.to_csv(INIT_FOLDER + "ni.csv", index = False)
+            # Adds Desc
+            notion_df["Description"] = [None] * len(notion_df)
+
+            notion_df.to_csv("notion_nt_list.csv", index = False)
+
+    else:
+        notion_df = pd.read_csv("notion_nt_list.csv")
+
+        notion_df["Description"] = notion_df["Description"].astype(str)
+
+        for i in range(len(notion_df)):
+            print(f"{i} / {len(notion_df) - 1}")
+            if not pd.isna(notion_df.loc[i, "URL"]):
+                if pd.isna(notion_df.loc[i, "Image"]) or notion_df.loc[i, "Description"] == "nan":
+                    desc, img_url = get_wiki_desc_and_img(notion_df.loc[i, "URL"])
+
+                    # print(desc)
+                    # NEED TO REPLACE ALL [*] to nothing
+                    flag = True
+                    if img_url != None and pd.isna(notion_df.loc[i, "Image"]):
+                        notion_df.loc[i, "Image"] = img_url
+                        flag = False
+                    if desc != None and notion_df.loc[i, "Description"] == "nan":
+                        pattern = r'\[\d+\]'
+                        desc = re.sub(pattern, '', desc)
+                        notion_df.loc[i, "Description"] = desc
+                        flag = False
+
+                    session.close()
+                    init_session()
+
+                    if flag:
+                        print("No Progress Made")
+                        continue
+
+                notion_df.to_csv("notion_nt_list.csv", index = False)
+
+    session.close()
+
+
 
 if __name__ == "__main__":
     main()
 
-# nt_df = pd.read_csv("initial.csv")
-# print(nt_df)
-
 # sorter(counties[:5], regions)
 
-
-
-"""
-So, what are the things that I want in this.... let's see
-I will manually add a "visited" and "date visited" section in Notion and 'visited with'
-
-I want:
- - Name of place
- - County
- - Region it's in (NI and Wales are just one region, Scotland and England have regions)
- - Country
- - URL ???? if there is one (WHat to do if there's 2???)
- - IMG
- - Brief Desc ????
-"""
