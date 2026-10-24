@@ -1,6 +1,8 @@
 ''' 
 Scrapes for information on national trust locations at the following sites:
  - https://en.wikipedia.org/wiki/List_of_National_Trust_properties_in_England
+ - https://en.wikipedia.org/wiki/List_of_National_Trust_properties_in_Wales
+ - https://en.wikipedia.org/wiki/List_of_National_Trust_properties_in_Nothern_Ireland
 
 Prepares .csv for Notion database
 '''
@@ -19,41 +21,39 @@ import random
 import re
 
 from selenium import webdriver
+from getuseragent import UserAgent
 
 ### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
 ### Scraping the Information ###
 
-# Initiates the session globally
-# session = requests.Session()
-# session = None
+def gen_user_agent(option = 0):
+    """ Generates the user-agent, with a few different options """
 
-# Obtaining the user-agent
-# driver = webdriver.Chrome()
-# useragent = driver.execute_script("return navigator.userAgent")
-# driver.quit()
+    # A default that has been known to work
+    if option == 0:
+        return "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0"
 
-# useragent = "Mozilla/5.0 (Tahoe; Mac OS 26_6_2)" # AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Safari/605.1.15"
+    # Uses selenium to fetch a user-agent
+    if option == 1:
+        driver = webdriver.Chrome()
+        useragent = driver.execute_script("return navigator.userAgent")
+        driver.quit()
+        return useragent
 
-# useragent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0"
-
-
-# from getuseragent import UserAgent
-# useragent = UserAgent("all")
-# theuseragent = useragent.Random()
+    # Generates a random user-agent
+    if option == 2:
+        useragent = UserAgent("all")
+        useragent = useragent.Random()
+        return useragent
 
 def init_session():
-    # driver = webdriver.Chrome()
-    # useragent = driver.execute_script("return navigator.userAgent")
-    # driver.quit()
+    """ Initiates a session object globally """
 
     global session
-    # Initiates the session globally
     session = requests.Session()
 
-    useragent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0"
-
-    # print(useragent)
+    useragent = gen_user_agent(0)
 
     session_headers = {
         'User-Agent': useragent,
@@ -65,31 +65,10 @@ def init_session():
 
     session.headers.update(session_headers)
 
-# def get_browser_headers(useragent):
-#     return {
-#         'User-Agent': useragent,
-#         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-#         'Accept-Language': 'en-US,en;q=0.9',
-#         'Accept-Encoding': 'gzip, deflate, br',
-#         'Connection': 'keep-alive',
-#         'Upgrade-Insecure-Requests': '1',
-#         'Sec-Fetch-Dest': 'document',
-#         'Sec-Fetch-Mode': 'navigate',
-#         'Sec-Fetch-Site': 'none',
-#         'Cache-Control': 'max-age=0',
-#     }
-
-# session_headers = {'accept-encoding': 'gzip', 'User-Agent': useragent}
-
-
-# print(theuseragent)
-
-# session_headers = get_browser_headers(theuseragent)
-
-def get_soup(url, delay = 0.4, retries = 3):
+def get_soup_inter(url, delay = 0.4, retries = 3):
     """ Fetch a URL politely and return parsed HTML (None if HTML doesn't exist) """
 
-    
+    global session
 
     for attempt in range(retries):
         time.sleep(delay)
@@ -128,33 +107,37 @@ def get_soup(url, delay = 0.4, retries = 3):
     print(f"could not fetch {url}")
     # raise RuntimeError(f"could not fetch {url}")
 
-def get_wiki_desc_and_img(url):
-    soup = get_soup(url)
+def get_soup(url, delay = 0.4, retries = 3):
+    """ Starts a new session for each successful URL request """
 
-    img_url = None
+    # Start a new session every time a url is fetched
+    init_session()
+
+    soup = get_soup_inter(url, delay, retries)
+
+    global session
+    session.close()
+
+    return soup
+
+def get_wiki_desc(url):
+    """ Fetches the first paragraph from the Wiki page """
+
+    soup = get_soup(url)
+    if soup == None:
+        return None
+
     desc = None
 
-    if soup == None:
-        return None, None
-
-    imgs = soup.find_all("img")
-    if imgs != None:
-        for img in imgs:
-            img_url = img["src"]
-            if img_url[:4] == "http":
-                break
-
-            img_url = img.get('resource')
-            if img_url != None:
-                if img_url[:4] == "http":
-                    break
-
+    # Check through each <p> object in order
     for p in soup.find_all("p"):
         desc = p.get_text().replace('\n', '')
-        if desc != "" and desc[2] != "°":
+
+        # Ignore any empty <p> objects, or any with a '°' as the 3rd character (as this is a Co-ords <p> object)
+        if desc != "" and desc[2] != '°':
             break
 
-    return desc, img_url
+    return desc
 
 ### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
@@ -166,7 +149,7 @@ WAL_WIKI = "https://en.wikipedia.org/wiki/List_of_National_Trust_properties_in_W
 SCOT_WIKI = ""
 
 def parse_eng_list(soup):
-    """  """
+    """ Parses the 'ENG_WIKI' for the list of all National Trust Sites in England, and their Counties & URL """
 
     nt_dict = {"Name": [], "County": [], "URL": []}
 
@@ -201,9 +184,9 @@ def parse_eng_list(soup):
     return nt_dict
 
 def parse_wal_list(soup):
-    """ """
+    """ Parses the 'WAL_WIKI' for the list of all National Trust Sites in Wales, and their Counties & URL """
 
-    nt_dict = {"Name": [], "County": [], "Image": [], "URL": []}
+    nt_dict = {"Name": [], "County": [], "URL": []}
 
     for sec in soup.find_all("section"):
 
@@ -227,11 +210,11 @@ def parse_wal_list(soup):
             if header_th.get_text() == "Site Name":
                 continue
 
-            image_url = tr.find("a", class_ = "mw-file-description")
-            if image_url != None:
-                nt_dict["Image"].append(image_url["href"])
-            else:
-                nt_dict["Image"].append(None)
+            # image_url = tr.find("a", class_ = "mw-file-description")
+            # if image_url != None:
+            #     nt_dict["Image"].append(image_url["href"])
+            # else:
+            #     nt_dict["Image"].append(None)
 
             a = tr.find("a", rel = "mw:WikiLink")
             if a != None:
@@ -253,7 +236,7 @@ def parse_wal_list(soup):
     return nt_dict
 
 def parse_ni_list(soup):
-    """ """
+    """ Parses the 'NI_WIKI' for the list of all National Trust Sites in N. Ireland, and their Counties & URL """
     
     nt_dict = {"Name": [], "County": [], "URL": []}
 
@@ -290,9 +273,11 @@ def parse_ni_list(soup):
 
 ### Formatting for Notion ###
 
-counties = ['Bedfordshire', 'Berkshire', 'Bristol', 'Buckinghamshire', 'Cambridgeshire', 'Cheshire', 'Cornwall', 'County Durham', 'Cumbria', 'Derbyshire', 'Devon', 'Dorset', 'Essex', 'Gloucestershire', 'Greater Manchester', 'Hampshire', 'Herefordshire', 'Hertfordshire', 'Isle of Wight', 'Kent', 'Lancashire', 'Leicestershire', 'Lincolnshire', 'Greater London', 'Merseyside', 'Norfolk', 'Northamptonshire', 'Northumberland', 'Nottinghamshire', 'Oxfordshire', 'Shropshire', 'Somerset', 'Staffordshire', 'Suffolk', 'Surrey', 'East Sussex', 'West Sussex', 'Teesside', 'Tyne and Wear', 'Warwickshire', 'West Midlands', 'Wiltshire', 'Worcestershire', 'East Riding of Yorkshire', 'North Yorkshire', 'South Yorkshire', 'West Yorkshire']
+eng_counties = ['Bedfordshire', 'Berkshire', 'Bristol', 'Buckinghamshire', 'Cambridgeshire', 'Cheshire', 'Cornwall', 'County Durham', 'Cumbria', 'Derbyshire', 'Devon', 'Dorset', 'Essex', 'Gloucestershire', 'Greater Manchester', 'Hampshire', 'Herefordshire', 'Hertfordshire', 'Isle of Wight', 'Kent', 'Lancashire', 'Leicestershire', 'Lincolnshire', 'Greater London', 'Merseyside', 'Norfolk', 'Northamptonshire', 'Northumberland', 'Nottinghamshire', 'Oxfordshire', 'Shropshire', 'Somerset', 'Staffordshire', 'Suffolk', 'Surrey', 'East Sussex', 'West Sussex', 'Teesside', 'Tyne and Wear', 'Warwickshire', 'West Midlands', 'Wiltshire', 'Worcestershire', 'East Riding of Yorkshire', 'North Yorkshire', 'South Yorkshire', 'West Yorkshire']
 
-regions = ['South West', 'South East', 'Greater London', 'East of England', 'East Midlands', 'West Midlands', 'Yorkshire and the Humber', 'North West', 'North East']
+eng_regions = ['South West', 'South East', 'Greater London', 'East of England', 'East Midlands', 'West Midlands', 'Yorkshire and the Humber', 'North West', 'North East']
+
+eng_counties_dict = {'South West': ['Bristol', 'Cornwall', 'Devon', 'Dorset', 'Gloucestershire', 'Somerset', 'Wiltshire'], 'South East': ['Berkshire', 'Buckinghamshire', 'Essex', 'Hampshire', 'Isle of Wight', 'Kent', 'Oxfordshire', 'Surrey', 'East Sussex', 'West Sussex'], 'Greater London': ['Greater London'], 'East of England': ['Bedfordshire', 'Cambridgeshire', 'Hertfordshire', 'Norfolk', 'Suffolk'], 'East Midlands': ['Derbyshire', 'Leicestershire', 'Lincolnshire', 'Northamptonshire', 'Nottinghamshire'], 'West Midlands': ['Herefordshire', 'Shropshire', 'Staffordshire', 'Warwickshire', 'West Midlands', 'Worcestershire'], 'Yorkshire and the Humber': ['East Riding of Yorkshire', 'North Yorkshire', 'South Yorkshire', 'West Yorkshire'], 'North West': ['Cheshire', 'Cumbria', 'Greater Manchester', 'Lancashire', 'Merseyside'], 'North East': ['County Durham', 'Northumberland', 'Teesside', 'Tyne and Wear']}
 
 def sorter(unsorted_list, headers):
     """ Allows for manual sorting of a list into a dictionary based on the headers """
@@ -318,6 +303,23 @@ def sorter(unsorted_list, headers):
                 print("Must be in range")
 
     print(sorted_list)
+
+# sorter(eng_counties, eng_regions)
+
+def add_eng_regions():
+    """ Adds in the English Regions based on what Country it's in """
+
+    nt_df = pd.read_csv("notion_nt_list.csv")
+
+    for i in range(len(nt_df)):
+        if (nt_df.loc[i, "Country"]) == "England":
+            for j in range(len(eng_counties_dict)):
+                region = list(eng_counties_dict.keys())[j]
+                if nt_df.loc[i, "County"] in eng_counties_dict[region]:
+                    nt_df.loc[i, "Region"] = region
+                    break
+
+    nt_df.to_csv("notion_nt_list.csv", index = False)
 
 ### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
@@ -346,8 +348,6 @@ def scrape_country_list(url, filename, parse_func):
 
 def main():
 
-    init_session()
-
     os.makedirs(INIT_FOLDER, exist_ok = True)
 
     eng_df = scrape_country_list(ENG_WIKI, INIT_FOLDER + "eng.csv", parse_eng_list)
@@ -364,7 +364,6 @@ def main():
                 "Region",
                 "Country",
                 "URL",
-                "Image"
             ]]
 
             # Adds Desc
@@ -372,44 +371,41 @@ def main():
 
             notion_df.to_csv("notion_nt_list.csv", index = False)
 
-    else:
-        notion_df = pd.read_csv("notion_nt_list.csv")
 
+
+    if os.path.exists("notion_nt_list.csv"):
+        notion_df = pd.read_csv("notion_nt_list.csv")
         notion_df["Description"] = notion_df["Description"].astype(str)
 
         for i in range(len(notion_df)):
-            print(f"{i} / {len(notion_df) - 1}")
-            if not pd.isna(notion_df.loc[i, "URL"]):
-                if pd.isna(notion_df.loc[i, "Image"]) or notion_df.loc[i, "Description"] == "nan":
-                    desc, img_url = get_wiki_desc_and_img(notion_df.loc[i, "URL"])
 
-                    # print(desc)
-                    # NEED TO REPLACE ALL [*] to nothing
-                    flag = True
-                    if img_url != None and pd.isna(notion_df.loc[i, "Image"]):
-                        notion_df.loc[i, "Image"] = img_url
-                        flag = False
-                    if desc != None and notion_df.loc[i, "Description"] == "nan":
+            # Print progress
+            if i % 50 == 0:
+                print(f"{i} / {len(notion_df) - 1}")
+
+            # If the site has a URL
+            if not pd.isna(notion_df.loc[i, "URL"]):
+
+                # If the description is not already filled in
+                if notion_df.loc[i, "Description"] == "nan":
+                    desc = get_wiki_desc(notion_df.loc[i, "URL"])
+
+                    if desc != None:
+
+                        # Removes [X], where X is a number, and are used as citations in Wiki pages
                         pattern = r'\[\d+\]'
                         desc = re.sub(pattern, '', desc)
+
                         notion_df.loc[i, "Description"] = desc
-                        flag = False
 
-                    session.close()
-                    init_session()
-
-                    if flag:
-                        print("No Progress Made")
+                    else:
+                        print(f"ERROR: Could NOT retrieve description for: {notion_df.loc[i, "Name"]}")
                         continue
 
                 notion_df.to_csv("notion_nt_list.csv", index = False)
 
-    session.close()
 
 
 
 if __name__ == "__main__":
     main()
-
-# sorter(counties[:5], regions)
-
