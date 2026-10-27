@@ -1,0 +1,27 @@
+### C/C++
+
+- **Building a Lisp (C)**
+    - Learning C by following tutorial
+- **Sudoku Solver (C)**
+    - Implementing sudoku solver algorithms
+    - Memory handling & data manipulation
+- **TinyRenderer (C++)**
+    - Learning C++ by following tutorial
+    - Reinforced understanding of maths behind the rendering pipeline
+
+### Python
+
+- **Pokemon**
+    - Internet scraping to extract information on each pokemon
+    - Reformatting & exporting to `.csv` file for Notion
+- **National Trust Scraper**
+    - Internet scraping the Wiki
+    - Following the rules set out by the Wiki
+- **Random Notion Projects**
+    - Mainly formatting for Notion
+
+### HTML/CSS
+
+### JavaScript
+
+### R
