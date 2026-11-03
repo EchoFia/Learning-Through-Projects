@@ -7,5 +7,11 @@
 # Python Files
 __pycache__
 
-# Large Bioinformatics Files
+# Large Bioinformatics Files & Supporting Files
 *.fastq.gz
+*.fa
+*.fa.fai
+*.chrom.sizes
+genome_config.yaml
+fastq
+GRCh38_noalt_as
