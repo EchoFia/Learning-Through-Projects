@@ -20,6 +20,10 @@
 
 # BiocManager::install("TxDb.Hsapiens.UCSC.hg38.knownGene")
 
+# BiocManager::install("EnrichedHeatmap")
+
+# install.packages("magick", repos = "https://cloud.r-project.org")
+
 ### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
 ### Set Up ###
@@ -35,6 +39,8 @@ suppressPackageStartupMessages({
     library(readr)
     library(ggpmisc)
     library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+    library(EnrichedHeatmap)
+    library(magick) # For raster optimisation in Fig. 1i
 })
 
 # Create directory to store figure images
@@ -322,4 +328,113 @@ ggplot(annotation_df, aes(x = "", y = peak_number, fill = category)) +
   labs(title = "YAP/TAZ/TEAD4 peaks") +
   scale_fill_manual(values = c("#8D1E0F", "#F57D2B", "#FADAC4", "#D4DADA")) +
   geom_text(aes(label = label), position = position_stack(vjust = 0.5)) # Add percentage labels
+garbage <- dev.off() # Returns 'null device 1'
+
+### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
+
+### Fig. 1i ###
+
+suppressWarnings({
+    enhancers <- subsetByOverlaps(H3K4me1, H3K4me3, invert = TRUE)
+    YAP_enhancers <- subsetByOverlaps(YAP_overlap_TAZ_peaks_overlap_TEAD4, enhancers)
+    YAP_promoters <- subsetByOverlaps(YAP_overlap_TAZ_peaks_overlap_TEAD4, promoters)
+})
+
+YAP_summit_enhancer <- YAP_summit[YAP_summit$name %in% YAP_enhancers$name]
+YAP_summit_promoter <- YAP_summit[YAP_summit$name %in% YAP_promoters$name]
+anchors<- c(YAP_summit_promoter, YAP_summit_enhancer) 
+
+fastq_dir = "fastq/"
+YAP_bw <- import(here(file.path(fastq_dir, "SRR1810900.bw")))
+TAZ_bw <- import(here(file.path(fastq_dir, "SRR1810907.bw")))
+TEAD4_bw <- import(here(file.path(fastq_dir, "SRR1810918.bw")))
+
+mat1 <- normalizeToMatrix(YAP_bw, anchors, value_column = "score",
+                         extend = 1000, mean_mode = "w0", w = 50)
+
+mat2 <- normalizeToMatrix(TAZ_bw, anchors, value_column = "score",
+                         extend = 1000, mean_mode = "w0", w = 50)
+
+mat3 <- normalizeToMatrix(TEAD4_bw, anchors, value_column = "score",
+                         extend = 1000, mean_mode = "w0", w = 50)
+
+col_fun <- circlize::colorRamp2(c(0, 20), c("white", "red"))
+
+partition <- c(rep("promoters", length(YAP_promoters)),
+              rep("enhancers", length(YAP_enhancers)))
+
+# change the factor level so promoters come first
+partition <- factor(partition, levels = c("promoters", "enhancers"))
+
+partition_hp <- Heatmap(partition, col = structure(2:3, names = c("promoters", "enhancers")), 
+        name = "partition",
+        show_row_names = FALSE, width = unit(3, 'mm'))
+
+ht_list<- partition_hp +
+  EnrichedHeatmap(mat1, pos_line = FALSE, column_title = "YAP", name = "YAP", col = col_fun, use_raster = TRUE) +
+  EnrichedHeatmap(mat2, pos_line = FALSE, column_title = "TAZ", name = "TAZ", col = col_fun, use_raster = TRUE) +
+  EnrichedHeatmap(mat3, pos_line = FALSE, column_title = "TEAD4", name = "TEAD4", col = col_fun, use_raster = TRUE)
+
+png(file = file.path(figures_dir, "Fig_1i.png"))
+draw(ht_list, split = partition, main_heatmap = 2)
+garbage <- dev.off() # Returns 'null device 1'
+
+### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
+
+### Fig. 1j ###
+
+YAP_mean<- colMeans(mat1)
+TAZ_mean<- colMeans(mat2)
+TEAD4_mean<- colMeans(mat3)
+
+png(file = file.path(figures_dir, "Fig_1j.png"))
+bind_rows(YAP_mean, TAZ_mean, TEAD4_mean) %>%
+  mutate(factor = factor(c("YAP", "TAZ", "TEAD4"), levels = c("YAP", "TAZ", "TEAD4"))) %>%
+  dplyr::select(factor, everything()) %>%
+  tidyr::pivot_longer(-factor) %>%
+  mutate(name = factor(name, levels = c(paste0("u",1:20), paste0("d", 1:20)))) %>%
+  ggplot(aes(x=name, y=value)) +
+  geom_line(aes(color = factor, group=factor)) +
+  scale_x_discrete(breaks=c("u1", "d1", "d20"), labels = c("-1kb", "0", "1kb")) +
+  scale_color_manual(values = c("#DA9195", "#E07B78", "#605D7D")) +
+  theme_classic(base_size = 14) +
+  ylab("RPKM") +
+  xlab("")
+garbage <- dev.off() # Returns 'null device 1'
+
+### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
+
+### Fig. 1k ###
+
+YAP_TAZ_dist <- data.frame(distance = mcols(distanceToNearest(YAP_overlap_TAZ_peaks, tss_gr))$distance)
+
+total_length <- nrow(YAP_TAZ_dist)
+
+# Category in kb
+counts_per_category <- YAP_TAZ_dist %>%
+  mutate(category = case_when(
+    distance < 1000 ~ "<1",
+    distance >=1000 & distance < 10000 ~ "1-10",
+    distance >= 10000 & distance <=100000 ~ "10-100",
+    distance > 100000 ~ ">100"
+  )) %>%
+  group_by(category) %>%
+  count()
+
+counts_per_category$category <- factor(counts_per_category$category, levels = c("<1", "1-10", "10-100", ">100"))
+
+png(file = file.path(figures_dir, "Fig_1k.png"))
+counts_per_category %>%
+  mutate(Percentage = n / total_length * 100) %>%
+  ggplot(aes(x = category, y = Percentage, fill = category)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "YAP/TAZ peaks associated with regulated genes",
+    x = "Distance to TSS / kb",
+    y = "% of peaks"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_fill_brewer(palette = "Set1") +
+  # scale_fill_manual(values = c("#EF3E2B", "#F57D2B", "#FADAC4", "#D4DADA")) +
+  theme_classic(base_size = 14)
 garbage <- dev.off() # Returns 'null device 1'
