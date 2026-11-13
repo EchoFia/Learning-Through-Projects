@@ -164,56 +164,54 @@ garbage <- dev.off() # Returns 'null device 1'
 
 if (!file.exists(file.path(peak_folder, "YAP_TAZ_TEAD4_common.bed"))) {
     export(YAP_overlap_TAZ_peaks_overlap_TEAD4, con = here(file.path(peak_folder, "YAP_TAZ_TEAD4_common.bed")))
-} else {
-
-  # NOTE: Must run some commands in terminal between these steps (Check log.ipynb)
-  # Hence the program stops if the previous code hadn't been run (if the file didn't exist)
-
-  num_reads <- read_tsv(here(file.path(peak_folder, "YAP_TAZ_TEAD4_counts.tsv")), col_names = FALSE, show_col_types = FALSE)
-  colnames(num_reads) <- c("chr", "start", "end", "name", "score", "value", "YAP", "TAZ", "TEAD4")
-
-  # Normalise to 'reads per million' - total aligned reads obtained in terminal (check log.ipynb)
-  # NOTE: Total aligned reads are 23653961, 26789648 and 34332907 for YAP, TAZ and TEAD4 respectively
-  num_reads <- num_reads %>%
-      mutate(YAP = YAP / 23653961 * 10^6,
-          TAZ = TAZ / 26789648 * 10^6,
-          TEAD4 = TEAD4 / 34332907 * 10^6)
-
-  # Export Fig. 1d (Currently as 2 separate files - Merge !!!!)
-  png(file = file.path(figures_dir, "Fig_1d_i.png"))
-  ggplot(num_reads, aes(x=TEAD4, y= YAP)) +
-    geom_point(color = "#ff4000") +
-    geom_smooth(method = "lm", se = FALSE, color = "black") +  # Linear regression line
-    stat_poly_eq(
-      aes(label = after_stat(rr.label)),
-      formula = y ~ x,
-      parse = TRUE,
-      color = "black"
-    ) +
-    scale_x_continuous(trans = 'log2') +
-    scale_y_continuous(trans = 'log2') +
-    theme_classic(base_size = 14) +
-    xlab("TEAD4 signal") +
-    ylab("YAP signal")
-  garbage <- dev.off() # Returns 'null device 1'
-
-  png(file = file.path(figures_dir, "Fig_1d_ii.png"))
-  ggplot(num_reads, aes(x=TEAD4, y= TAZ)) +
-    geom_point(color = "#ff4000") +
-    geom_smooth(method = "lm", se = FALSE, color = "black") +  # Linear regression line
-    stat_poly_eq(
-      aes(label = after_stat(rr.label)),
-      formula = y ~ x,
-      parse = TRUE,
-      color = "black"
-    ) +
-    scale_x_continuous(trans = 'log2') +
-    scale_y_continuous(trans = 'log2') +
-    theme_classic(base_size = 14) +
-    xlab("TEAD4 signal") +
-    ylab("TAZ signal")
-  garbage <- dev.off() # Returns 'null device 1'
 }
+
+# NOTE: Must run some commands in terminal between these steps (Check log.ipynb)
+
+num_reads <- read_tsv(here(file.path(peak_folder, "YAP_TAZ_TEAD4_counts.tsv")), col_names = FALSE, show_col_types = FALSE)
+colnames(num_reads) <- c("chr", "start", "end", "name", "score", "value", "YAP", "TAZ", "TEAD4")
+
+# Normalise to 'reads per million' - total aligned reads obtained in terminal (check log.ipynb)
+# NOTE: Total aligned reads are 23653961, 26789648 and 34332907 for YAP, TAZ and TEAD4 respectively
+num_reads <- num_reads %>%
+    mutate(YAP = YAP / 23653961 * 10^6,
+        TAZ = TAZ / 26789648 * 10^6,
+        TEAD4 = TEAD4 / 34332907 * 10^6)
+
+# Export Fig. 1d (Currently as 2 separate files - Merge !!!!)
+png(file = file.path(figures_dir, "Fig_1d_i.png"))
+ggplot(num_reads, aes(x=TEAD4, y= YAP)) +
+  geom_point(color = "#ff4000") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +  # Linear regression line
+  stat_poly_eq(
+    aes(label = after_stat(rr.label)),
+    formula = y ~ x,
+    parse = TRUE,
+    color = "black"
+  ) +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2') +
+  theme_classic(base_size = 14) +
+  xlab("TEAD4 signal") +
+  ylab("YAP signal")
+garbage <- dev.off() # Returns 'null device 1'
+
+png(file = file.path(figures_dir, "Fig_1d_ii.png"))
+ggplot(num_reads, aes(x=TEAD4, y= TAZ)) +
+  geom_point(color = "#ff4000") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +  # Linear regression line
+  stat_poly_eq(
+    aes(label = after_stat(rr.label)),
+    formula = y ~ x,
+    parse = TRUE,
+    color = "black"
+  ) +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2') +
+  theme_classic(base_size = 14) +
+  xlab("TEAD4 signal") +
+  ylab("TAZ signal")
+garbage <- dev.off() # Returns 'null device 1'
 
 ### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
 
@@ -270,4 +268,58 @@ merged_df %>%
   scale_y_continuous(labels = scales::percent_format(scale = 1)) +
   scale_fill_manual(values = c("#EF3E2B", "#F16161", "#F59595", "#FAD1C8")) +
   theme_classic(base_size = 14)
+garbage <- dev.off() # Returns 'null device 1'
+
+### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
+
+### Fig. 1g ###
+
+### =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= ###
+
+### Fig. 1h ###
+
+public_data_folder = "public_data/"
+H3K4me1<- import(here(file.path(public_data_folder, "H3K4me1.bed")))
+H3K4me3<- import(here(file.path(public_data_folder, "H3K4me3.bed")))
+H3K27ac<- import(here(file.path(public_data_folder, "H3K27ac.bed")))
+
+suppressWarnings({
+    active_enhancers <- subsetByOverlaps(H3K4me1, H3K27ac)
+    inactive_enhancers <- subsetByOverlaps(H3K4me1, H3K27ac, invert = TRUE)
+    promoters <- subsetByOverlaps(H3K4me3, H3K4me1, invert = TRUE)
+
+    n_active_enhancers <- length(subsetByOverlaps(YAP_overlap_TAZ_peaks_overlap_TEAD4, active_enhancers))
+    n_inactive_enhancers <- length(subsetByOverlaps(YAP_overlap_TAZ_peaks_overlap_TEAD4, inactive_enhancers))
+    n_promoters <- length(subsetByOverlaps(YAP_overlap_TAZ_peaks_overlap_TEAD4, promoters))
+})
+
+n_unclassified <- length(YAP_overlap_TAZ_peaks_overlap_TEAD4) - n_active_enhancers - n_inactive_enhancers - n_promoters
+
+
+annotation_df <- data.frame(
+                    category = c("active_enhancers", "inactive_enhancers", "promoters", "unclassified"),
+                    peak_number = c(n_active_enhancers, n_inactive_enhancers, n_promoters, n_unclassified)
+                 )
+
+annotation_df$category <- factor(
+                            annotation_df$category, 
+                            levels = c("promoters", "active_enhancers", "inactive_enhancers", "unclassified")
+                          )
+
+# Calculate percentages and cumulative positions for labeling
+annotation_df <- annotation_df %>%
+  dplyr::mutate(
+    percentage = peak_number / sum(peak_number) * 100,
+    label = paste0(round(percentage, 1), "%")
+  )
+
+# Create the pie chart
+png(file = file.path(figures_dir, "Fig_1h.png"))
+ggplot(annotation_df, aes(x = "", y = peak_number, fill = category)) +
+  geom_bar(stat = "identity", width = 1) + 
+  coord_polar("y", start = 0) +
+  theme_void() + # Remove unnecessary axes
+  labs(title = "YAP/TAZ/TEAD4 peaks") +
+  scale_fill_manual(values = c("#8D1E0F", "#F57D2B", "#FADAC4", "#D4DADA")) +
+  geom_text(aes(label = label), position = position_stack(vjust = 0.5)) # Add percentage labels
 garbage <- dev.off() # Returns 'null device 1'
