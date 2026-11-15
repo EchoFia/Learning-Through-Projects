@@ -23,14 +23,14 @@
 
 # Import modules silently
 suppressPackageStartupMessages({
-    library(rtracklayer) # for reading in bed file
+    library(rtracklayer) # For reading in .bed files
     library(here)
     library(GenomicRanges)
     library(Vennerable)
     library(dplyr)
     library(ggplot2)
     library(readr)
-    library(ggpmisc)
+    library(ggpmisc) # For correlation co-efficients
     library(TxDb.Hsapiens.UCSC.hg38.knownGene)
     library(EnrichedHeatmap)
     library(magick) # For raster optimisation in Fig. 1i
@@ -38,6 +38,7 @@ suppressPackageStartupMessages({
 
 # Create directory to store figure images
 FIGURES_DIR = "Figures/"
+
 # Create the directory (if needed)
 if (!file.exists(FIGURES_DIR)) {
     dir.create(FIGURES_DIR)
@@ -48,9 +49,6 @@ PUBLIC_DATA_DIR = "public_data/"
 FASTQ_DIR = "fastq/"
 
 PRINT_PROGRESS = TRUE
-
-
-### MAYBE DO PDF's? Which one is better? compared to pngs
 
 # NOTE: 'YAP_TAZ_TEAD4' implies YAP/TAZ with TEAD4
 
@@ -66,6 +64,7 @@ YAP_peaks <- import(here(file.path(PEAKS_DIR, "SRR1810900_peak/SRR1810900_peaks.
 # NOTE: Warnings suppressed due to 3 'sequence levels' being present in only 1 (not both)
 YAP_TAZ_peaks <- suppressWarnings(subsetByOverlaps(YAP_peaks, TAZ_peaks))
 
+# Number of peaks for each (sub)set
 n_YAP <- length(YAP_peaks)
 n_TAZ <- length(TAZ_peaks)
 n_YAP_TAZ <- length(YAP_TAZ_peaks)
@@ -120,8 +119,10 @@ YAP_summit <- import(here(file.path(PEAKS_DIR, "SRR1810900_peak/SRR1810900_summi
 
 YAP_TAZ_summit <- YAP_summit[YAP_summit$name %in% YAP_TAZ_peaks$name]
 
+# Creates a 500 bp window centred around each summit -> Overlap if within ±250 bp
 YAP_TAZ_500bp_window <- resize(YAP_TAZ_summit, width = 500, fix = "center")
 
+# Returns a 'Hits' object (or integer vector) indexing every individual pair-wise match
 hits <- findOverlaps(TEAD4_summit, YAP_TAZ_500bp_window)
 
 # Compute signed distances for 'GRanges' object
@@ -131,26 +132,29 @@ signed_distance <- function(A, B) {
   return (dist * sign)
 }
 
+# queryHits(hits) extracts the first half of the saved indices, subjectHits(hits) the second half
 YAP_TAZ_TEAD4_summit_distances <- signed_distance(TEAD4_summit[queryHits(hits)], YAP_TAZ_summit[subjectHits(hits)])
-df_YAP_TAZ_TEAD4_summit_distances <- tibble::as_tibble(table(YAP_TAZ_TEAD4_summit_distances))
-
-df_YAP_TAZ_TEAD4_binned_distances <- df_YAP_TAZ_TEAD4_summit_distances %>%
+df_YAP_TAZ_TEAD4_summit_distances <- tibble::as_tibble(table(YAP_TAZ_TEAD4_summit_distances))  %>%
   mutate(YAP_TAZ_TEAD4_summit_distances = as.numeric(YAP_TAZ_TEAD4_summit_distances)) %>%
-  arrange(YAP_TAZ_TEAD4_summit_distances) %>%
-  mutate(bin = floor(YAP_TAZ_TEAD4_summit_distances / 5) * 5) %>%  # Create bins by grouping every 5 bp
+  arrange(YAP_TAZ_TEAD4_summit_distances)
+
+# Draws lines between every 5 points (from their average) for a smoother curve
+df_YAP_TAZ_TEAD4_binned_distances <- df_YAP_TAZ_TEAD4_summit_distances %>%
+  mutate(bin = floor(YAP_TAZ_TEAD4_summit_distances / 5) * 5) %>% # Create bins by grouping every 5 bp
   group_by(bin) %>%
-  summarise(n = mean(n, na.rm = TRUE))  # Calculate average 'n' for each bin
+  summarise(n = mean(n, na.rm = TRUE)) # Calculate average 'n' for each bin
 
-
-# Export Fig. 1c
+# Export Fig. 1c (raw)
 png(file = file.path(FIGURES_DIR, "Fig_1c_raw.png"))
 df_YAP_TAZ_TEAD4_summit_distances %>%
-  mutate(YAP_TAZ_TEAD4_summit_distances = as.numeric(YAP_TAZ_TEAD4_summit_distances)) %>%
-  arrange(YAP_TAZ_TEAD4_summit_distances) %>%
   ggplot(aes(x = YAP_TAZ_TEAD4_summit_distances, y = n)) +
-  geom_line()
+  geom_line() +
+  scale_x_continuous(breaks = c(-250, 0, 250)) +
+  xlab("distance to the summit \nof YAP peaks (bp)") +
+  ylab("peak frequency")
 garbage <- dev.off() # Returns 'null device 1'
 
+# Export Fig. 1c (smoothed)
 png(file = file.path(FIGURES_DIR, "Fig_1c.png"))
 df_YAP_TAZ_TEAD4_binned_distances %>%
   ggplot(aes(x = bin, y = n)) +
@@ -167,6 +171,7 @@ if (PRINT_PROGRESS) { paste("CREATED: Fig. 1c") }
 
 ### Fig. 1d ###
 
+# Exports the overlapping peaks as a .bed file (If not already done so)
 if (!file.exists(file.path(PEAKS_DIR, "YAP_TAZ_TEAD4_common.bed"))) {
   export(YAP_TAZ_TEAD4_peaks, con = here(file.path(PEAKS_DIR, "YAP_TAZ_TEAD4_common.bed")))
 }
@@ -185,7 +190,7 @@ n_reads <- n_reads %>%
 
 # Export Fig. 1d (Currently as 2 separate files - Merge !!!!)
 png(file = file.path(FIGURES_DIR, "Fig_1d_i.png"))
-ggplot(n_reads, aes(x=TEAD4, y= YAP)) +
+ggplot(n_reads, aes(x = TEAD4, y = YAP)) +
   geom_point(color = "#ff4000") +
   geom_smooth(method = "lm", se = FALSE, color = "black", formula = y ~ x) +  # Linear regression line
   stat_poly_eq(
@@ -202,7 +207,7 @@ ggplot(n_reads, aes(x=TEAD4, y= YAP)) +
 garbage <- dev.off() # Returns 'null device 1'
 
 png(file = file.path(FIGURES_DIR, "Fig_1d_ii.png"))
-ggplot(n_reads, aes(x=TEAD4, y= TAZ)) +
+ggplot(n_reads, aes(x = TEAD4, y = TAZ)) +
   geom_point(color = "#ff4000") +
   geom_smooth(method = "lm", se = FALSE, color = "black", formula = y ~ x) +  # Linear regression line
   stat_poly_eq(
@@ -228,6 +233,7 @@ if (PRINT_PROGRESS) { paste("CREATED: Fig. 1d") }
 hg38_transcripts <- transcripts(TxDb.Hsapiens.UCSC.hg38.knownGene)
 tss_gr <- promoters(hg38_transcripts, upstream = 0, downstream = 1)
 
+# Calculate the distance of each peak to its nearest TSS
 YAP_dist <- mcols(distanceToNearest(YAP_peaks, tss_gr))$distance
 TAZ_dist <- mcols(distanceToNearest(TAZ_peaks, tss_gr))$distance
 TEAD4_dist <- mcols(distanceToNearest(TEAD4_peak, tss_gr))$distance
@@ -238,16 +244,19 @@ df_tss_distance <- bind_rows(
   data.frame(factor = "TEAD4", distance = TEAD4_dist)
 )
 
+# Categorise into 4 bands of distances
 df_counts_per_category <- df_tss_distance %>%
   mutate(category = case_when(
     distance < 1000 ~ "<1kb",
-    distance >=1000 & distance < 10000 ~ "1-10kb",
-    distance >= 10000 & distance <=100000 ~ "10-100kb",
+    distance >= 1000 & distance < 10000 ~ "1-10kb",
+    distance >= 10000 & distance <= 100000 ~ "10-100kb",
     distance > 100000 ~ ">100kb"
   )) %>%
   group_by(factor, category) %>%
   count()
 
+# Calculate the total number of signals of each set
+# NOTE: Technically just n_YAP, n_TAZ & n_TEAD4
 total_counts <- df_tss_distance %>%
   mutate(category = case_when(
     distance < 1000 ~ "<1kb",
@@ -257,6 +266,7 @@ total_counts <- df_tss_distance %>%
   )) %>%
   count(factor, name = "total")
   
+# Merge and reorder
 df_counts_per_category <- suppressMessages(left_join(df_counts_per_category, total_counts))
 df_counts_per_category$category <- factor(
   df_counts_per_category$category, 
@@ -303,6 +313,7 @@ suppressWarnings({
     n_promoters <- length(subsetByOverlaps(YAP_TAZ_TEAD4_peaks, promoters))
 })
 
+# Remainder that don't lie on known enhancers/promoters
 n_unclassified <- length(YAP_TAZ_TEAD4_peaks) - n_active_enhancers - n_inactive_enhancers - n_promoters
 
 df_annotation <- data.frame(
@@ -322,7 +333,7 @@ df_annotation <- df_annotation %>%
     label = paste0(round(percentage, 1), "%")
   )
 
-# Create the pie chart
+# Exports Fig. 1h
 png(file = file.path(FIGURES_DIR, "Fig_1h.png"))
 ggplot(df_annotation, aes(x = "", y = peak_number, fill = category)) +
   geom_bar(stat = "identity", width = 1) + 
@@ -375,6 +386,7 @@ ht_list <- partition_hp +
   EnrichedHeatmap(TAZ_mat, pos_line = FALSE, column_title = "TAZ", name = "TAZ", col = col_fun, use_raster = TRUE) +
   EnrichedHeatmap(TEAD4_mat, pos_line = FALSE, column_title = "TEAD4", name = "TEAD4", col = col_fun, use_raster = TRUE)
 
+# Exports Fig. 1i
 png(file = file.path(FIGURES_DIR, "Fig_1i.png"))
 draw(ht_list, split = partition, main_heatmap = 2)
 garbage <- dev.off() # Returns 'null device 1'
@@ -389,6 +401,7 @@ YAP_mean <- colMeans(YAP_mat)
 TAZ_mean <- colMeans(TAZ_mat)
 TEAD4_mean <- colMeans(TEAD4_mat)
 
+# Exports Fig. 1j
 png(file = file.path(FIGURES_DIR, "Fig_1j.png"))
 bind_rows(YAP_mean, TAZ_mean, TEAD4_mean) %>%
   mutate(factor = factor(c("YAP", "TAZ", "TEAD4"), levels = c("YAP", "TAZ", "TEAD4"))) %>%
@@ -430,6 +443,7 @@ df_YAP_TAZ_counts_per_category$category <- factor(
   levels = c("<1", "1-10", "10-100", ">100")
 )
 
+# Exports Fig. 1k
 png(file = file.path(FIGURES_DIR, "Fig_1k.png"))
 df_YAP_TAZ_counts_per_category %>%
   mutate(Percentage = n / n_YAP_TAZ * 100) %>%
