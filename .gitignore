@@ -7,6 +7,9 @@
 # Python Files
 __pycache__
 
+# VSCode Files
+.vscode
+
 # Large Bioinformatics Files & Supporting Files
 *.fastq.gz
 *.fa
